@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <!--SF-CONTENT-START-->
 <title>Notizen</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='10' y='6' width='44' height='54' rx='5' fill='%23f6c544'/%3E%3Crect x='10' y='6' width='44' height='11' rx='5' fill='%23e0a91c'/%3E%3Cpath d='M19 28h26M19 37h26M19 46h17' stroke='%23705410' stroke-width='3.5' stroke-linecap='round'/%3E%3C/svg%3E">
@@ -171,6 +171,52 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:14px;border:1px solid rgba
 #clickplay div{font-family:var(--f-disp);font-size:30px;padding:16px 26px;background:var(--panel);border:1px solid var(--amber);color:var(--amber);text-align:center}
 #clickplay small{display:block;font-family:var(--f-ui);font-size:15px;color:var(--muted);margin-top:4px}
 
+/* Touch / Handy */
+html,body{touch-action:manipulation;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#touch{position:fixed;inset:0;z-index:12;touch-action:none;-webkit-user-select:none;user-select:none}
+#touch .tb{position:absolute;border-radius:50%;background:rgba(15,20,24,.42);border:2px solid rgba(255,255,255,.35);color:#fff;font:700 12px var(--f-ui);letter-spacing:.06em;display:flex;align-items:center;justify-content:center;text-align:center;text-transform:uppercase;text-shadow:0 1px 2px #000}
+#touch .tb.on,#touch .tb.down{background:rgba(232,176,74,.55);border-color:var(--amber)}
+#touch .fire{width:88px;height:88px;right:calc(100px + env(safe-area-inset-right,0px));bottom:calc(52px + env(safe-area-inset-bottom,0px));font-size:15px;background:rgba(190,55,45,.45);border-color:rgba(255,140,120,.75)}
+#touch .fire.down{background:rgba(230,70,55,.7)}
+#touch .aim{width:62px;height:62px;right:calc(204px + env(safe-area-inset-right,0px));bottom:calc(30px + env(safe-area-inset-bottom,0px))}
+#touch .jump{width:66px;height:66px;right:calc(22px + env(safe-area-inset-right,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px))}
+#touch .crouch{width:58px;height:58px;right:calc(26px + env(safe-area-inset-right,0px));bottom:calc(106px + env(safe-area-inset-bottom,0px))}
+#touch .reload{width:54px;height:54px;right:calc(118px + env(safe-area-inset-right,0px));bottom:calc(152px + env(safe-area-inset-bottom,0px))}
+#touch .swap{width:54px;height:54px;right:calc(30px + env(safe-area-inset-right,0px));bottom:calc(178px + env(safe-area-inset-bottom,0px))}
+#touch .sq{border-radius:8px;top:max(10px,env(safe-area-inset-top,0px));height:38px}
+#touch .pause{width:44px;left:calc(122px + env(safe-area-inset-left,0px));font-size:16px}
+#touch .board{width:66px;left:calc(172px + env(safe-area-inset-left,0px))}
+#stick{position:absolute;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;border:2px solid rgba(255,255,255,.35);background:rgba(0,0,0,.18);pointer-events:none}
+#stick i{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(255,255,255,.5)}
+#rotate{position:fixed;inset:0;z-index:90;background:#0c1013;color:var(--fg);display:none;align-items:center;justify-content:center;text-align:center;padding:24px;font-size:24px;font-weight:700}
+#rotate small{display:block;font-size:16px;font-weight:500;color:var(--muted);margin-top:6px}
+@media (orientation:portrait){ body.touch.playing #rotate{display:flex} }
+body.touch #hint{display:none}
+body.touch #minimap{width:100px;height:100px}
+body.touch #feed{top:118px;font-size:13px}
+body.touch #ammo{right:auto;left:50%;transform:translateX(-50%);bottom:max(6px,env(safe-area-inset-bottom,0px));padding:4px 10px;text-align:center}
+body.touch #mag{font-size:28px}
+body.touch #reserve{font-size:16px}
+body.touch #wname{display:none}
+body.touch #slots{justify-content:center}
+body.touch #slots span{padding:5px 9px;font-size:14px}
+body.touch #health{padding:5px 8px;bottom:max(8px,env(safe-area-inset-bottom,0px))}
+body.touch #health .bar{width:80px}
+body.touch #hpnum{font-size:20px;min-width:40px}
+body.touch #perks{bottom:calc(max(8px,env(safe-area-inset-bottom,0px)) + 40px)}
+body.touch #score .sb{font-size:22px;min-width:48px}
+body.touch #timer{font-size:17px}
+body.touch #limit{display:none}
+body.touch #cmsg{top:40%;font-size:16px}
+body.touch #dead .big{font-size:32px}
+body.touch .vt{width:88px;height:66px}
+body.touch #board{max-height:80vh;overflow:auto}
+@media (max-height:520px){
+  .menu-col{gap:8px;padding:14px 16px}.logo{font-size:34px}.tag{display:none}
+  .btn{padding:7px 12px;font-size:16px}.panel{padding:14px;gap:10px}h2{font-size:24px}
+  .code-in{font-size:32px!important}.code-box b{font-size:30px}.result{font-size:38px}
+}
+.devline{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 /* Tarnseite */
 #cover{position:fixed;inset:0;z-index:100;background:#fff;color:#202124;font-family:Arial,Helvetica,sans-serif;display:flex;align-items:flex-start;justify-content:center;padding:14vh max(16px,env(safe-area-inset-left,0px)) 0 max(16px,env(safe-area-inset-right,0px));-webkit-user-select:none;user-select:none;cursor:default}
 #cover .box{max-width:520px;width:100%}
@@ -215,6 +261,18 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:14px;border:1px solid rgba
   <div id="board" hidden></div>
   <div id="dead" hidden><div class="big">AUSGESCHALTET</div><div id="deadby"></div><div id="deadt"></div></div>
 </div>
+<div id="touch" hidden>
+  <div id="stick" hidden><i></i></div>
+  <div class="tb fire" data-act="fire">Feuer</div>
+  <div class="tb aim" data-act="aim">Zielen</div>
+  <div class="tb jump" data-act="jump">Sprung</div>
+  <div class="tb crouch" data-act="crouch">Ducken</div>
+  <div class="tb reload" data-act="reload">Laden</div>
+  <div class="tb swap" data-act="swap">Waffe</div>
+  <div class="tb sq pause" data-act="pause">II</div>
+  <div class="tb sq board" data-act="board">Punkte</div>
+</div>
+<div id="rotate"><div>Dreh dein Handy quer<small>Das Spiel läuft im Querformat.</small></div></div>
 <div id="clickplay" hidden><div>Klicken zum Spielen<small>Maus wird gefangen · Esc gibt sie frei</small></div></div>
 
 <main id="ui">
@@ -232,6 +290,7 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:14px;border:1px solid rgba
         <button id="b-help" class="btn ghost">Steuerung</button>
       </div>
       <div class="credits">Credits <b id="m-credits">0</b></div>
+      <div class="devline" id="m-dev"></div>
       <p id="mp-note" class="note warn" hidden></p>
     </div>
   </section>
@@ -290,18 +349,29 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:14px;border:1px solid rgba
 
   <section id="scr-settings" class="screen panel" hidden>
     <h2>Einstellungen</h2>
+    <p class="devline" id="dev-label"></p>
+    <div class="row"><label>Steuerung</label><div class="seg" id="set-ctrl"></div></div>
     <div class="row"><label>Grafik</label><div class="seg" id="set-q"></div></div>
     <div class="row"><label for="set-sens">Maus-Empfindlichkeit <span id="v-sens"></span></label><input type="range" id="set-sens" min="0.2" max="3" step="0.05"></div>
     <div class="row"><label for="set-fov">Sichtfeld <span id="v-fov"></span></label><input type="range" id="set-fov" min="65" max="100" step="1"></div>
     <div class="row"><label for="set-vol">Lautstärke <span id="v-vol"></span></label><input type="range" id="set-vol" min="0" max="1" step="0.05"></div>
     <label class="check"><input type="checkbox" id="set-invert"> Maus-Y umkehren</label>
-    <p class="note">„Niedrig“ ist für Chromebooks gedacht. Ruckelt es trotzdem, senkt das Spiel die Auflösung von selbst.</p>
+    <p class="note">„Automatisch“ erkennt Handy oder Chromebook. „Niedrig“ ist für Chromebooks gedacht. Ruckelt es trotzdem, senkt das Spiel die Auflösung von selbst.</p>
     <div class="acts"><button id="b-full" class="btn ghost">Vollbild</button><button id="b-set-back" class="btn primary">Fertig</button></div>
   </section>
 
   <section id="scr-help" class="screen panel" hidden>
     <h2>Steuerung</h2>
-    <div class="keys">
+    <div class="keys" id="help-touch" hidden>
+      <kbd>Linker Daumen</kbd><span>Laufen (ganz nach vorn = Sprinten)</span>
+      <kbd>Rechts wischen</kbd><span>Umschauen</span>
+      <kbd>Feuer</kbd><span>Schießen (beim Halten kannst du auch umschauen)</span>
+      <kbd>Zielen</kbd><span>An / aus</span>
+      <span><kbd>Laden</kbd> · <kbd>Waffe</kbd></span><span>Nachladen · Waffe wechseln (oder unten auf die Waffe tippen)</span>
+      <span><kbd>Sprung</kbd> · <kbd>Ducken</kbd></span><span>Ducken beim Sprinten = Rutschen</span>
+      <span><kbd>II</kbd> · <kbd>Punkte</kbd></span><span>Pause (Waffenkammer, Einstellungen) · Punktetabelle</span>
+    </div>
+    <div class="keys" id="help-keys">
       <span><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></span><span>Laufen</span>
       <kbd>Maus / Touchpad</kbd><span>Umschauen</span>
       <kbd>Linksklick</kbd><span>Schießen</span>
@@ -329,6 +399,8 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:14px;border:1px solid rgba
       <button id="b-resume" class="btn primary">Weiterspielen</button>
       <button id="b-p-armory" class="btn">Waffenkammer</button>
       <button id="b-p-settings" class="btn">Einstellungen</button>
+      <button id="b-p-mic" class="btn ghost">Mikro: an</button>
+      <button id="b-p-cam" class="btn ghost">Kamera: an</button>
       <button id="b-quit" class="btn ghost">Match verlassen</button>
     </div>
   </section>
@@ -364,6 +436,22 @@ const clamp = (v,a,b) => v<a?a:v>b?b:v;
 const lerp = (a,b,t) => a+(b-a)*t;
 function angDiff(a,b){ let d=b-a; while(d>Math.PI) d-=Math.PI*2; while(d<-Math.PI) d+=Math.PI*2; return d; }
 const IS_CROS = /CrOS/.test(navigator.userAgent);
+const UA = navigator.userAgent;
+const DEV = (function(){
+  const coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+  if(IS_CROS) return { kind:'chromebook', label:'Chromebook', touch:false };
+  if(/iPhone|iPod/.test(UA)) return { kind:'iphone', label:'iPhone', touch:true };
+  if(/iPad/.test(UA)||(/Macintosh/.test(UA)&&navigator.maxTouchPoints>1)) return { kind:'ipad', label:'iPad', touch:true };
+  if(/Android/.test(UA)){
+    if(/SM-G988/.test(UA)) return { kind:'samsung', label:'Samsung Galaxy S20 Ultra', touch:true };
+    if(/SAMSUNG|SM-[A-Z]\d|SamsungBrowser/i.test(UA)) return { kind:'samsung', label:'Samsung-Handy', touch:true };
+    return { kind:'android', label:'Android-Handy', touch:true };
+  }
+  if(coarse) return { kind:'touch', label:'Touch-Gerät', touch:true };
+  return { kind:'pc', label:'Computer', touch:false };
+})();
+// Chrome auf Android verrät das Modell nur auf Nachfrage
+try{ if(DEV.kind==='android'&&navigator.userAgentData&&navigator.userAgentData.getHighEntropyValues) navigator.userAgentData.getHighEntropyValues(['model']).then(v=>{ const m=v&&v.model||''; if(/^SM-G988/.test(m)){ DEV.kind='samsung'; DEV.label='Samsung Galaxy S20 Ultra'; } else if(/^SM-/.test(m)){ DEV.kind='samsung'; DEV.label='Samsung-Handy ('+m+')'; } if(window.__devLabel) window.__devLabel(); }).catch(()=>{}); }catch(e){}
 const MP_BLOCKED = /claude/i.test(location.hostname);
 const PeerCls = MP_BLOCKED ? null : (window.Peer || (window.peerjs && window.peerjs.Peer) || null);
 
@@ -372,8 +460,10 @@ const store = {
   get(k,d){ try{ const v=localStorage.getItem('stahlfront_'+k); return v==null?d:JSON.parse(v); }catch(e){ return d; } },
   set(k,v){ try{ localStorage.setItem('stahlfront_'+k, JSON.stringify(v)); }catch(e){} }
 };
-const settings = Object.assign({ name:'Soldat'+(100+Math.random()*900|0), quality: IS_CROS?'low':'mid', sens:1, fov:80, vol:0.7, invert:false, cam:true }, store.get('settings',{}));
+const settings = Object.assign({ name:'Soldat'+(100+Math.random()*900|0), quality: IS_CROS?'low':'mid', ctrl:'auto', sens:1, fov:80, vol:0.7, invert:false, cam:true }, store.get('settings',{}));
 const saveSettings = () => store.set('settings', settings);
+let TOUCH = settings.ctrl==='touch' || (settings.ctrl!=='keys' && DEV.touch);
+const TIN={ jx:0, jy:0, fire:false, aim:false, crouch:false, jump:false };
 
 // ================= Waffen =================
 const WEAPONS = [
@@ -775,7 +865,7 @@ async function getMedia(){
 function blankStream(){ const c=document.createElement('canvas'); c.width=16; c.height=12; c.getContext('2d').fillRect(0,0,16,12); return c.captureStream?c.captureStream(1):null; }
 function applyMediaToggles(){
   if(NET.local){ NET.local.getAudioTracks().forEach(t=>t.enabled=NET.micOn); NET.local.getVideoTracks().forEach(t=>t.enabled=NET.camOn); }
-  $('b-mic').textContent='Mikro: '+(NET.micOn?'an':'aus'); $('b-cam').textContent='Kamera: '+(NET.camOn?'an':'aus');
+  $('b-mic').textContent=$('b-p-mic').textContent='Mikro: '+(NET.micOn?'an':'aus'); $('b-cam').textContent=$('b-p-cam').textContent='Kamera: '+(NET.camOn?'an':'aus');
 }
 function lobbyName(peer){ const p=NET.lobby&&NET.lobby.players.find(p=>p.peer===peer); return p?p.name:'Spieler'; }
 function lobbyTeam(peer){ if(match){ const e=match.ents.find(e=>e.peer===peer); if(e) return e.team; } const p=NET.lobby&&NET.lobby.players.find(p=>p.peer===peer); return p?p.team:0; }
@@ -971,7 +1061,7 @@ function startMatch(cfg,roster,extra){
 function endMatchCleanup(){
   if(match){ match.ents.forEach(removeChar); }
   match=null; $('hud').hidden=true; $('scope').hidden=true; $('clickplay').hidden=true; $('hurt').style.opacity=0;
-  game.state='menu'; game.overlay=null; game.paused=false; vms.forEach(v=>v.visible=false);
+  game.state='menu'; game.overlay=null; game.paused=false; vms.forEach(v=>v.visible=false); resetTin(); syncTouchUi();
   if(document.pointerLockElement) document.exitPointerLock();
 }
 function resetLoadout(){ P.ws=WEAPONS.map((w,i)=>({ mag:stats[i].mag, reserve:w.reserve })); P.reloadT=0; P.switchT=0; P.fireCd=0; P.ads=0; P.kick=0; P.trig=false; }
@@ -1172,7 +1262,8 @@ function localFire(){
   if(ws.mag<=0){ sfx('empty'); P.fireCd=.25; startReload(); return; }
   ws.mag--; P.fireCd=60/st.rpm/(P.adrenT>0?1.3:1); me.lastFireT=match.time;
   const sp=currentSpread();
-  const eye=[camera.position.x,camera.position.y,camera.position.z], base=dirFrom(P.yaw,P.pitch);
+  const eye=[camera.position.x,camera.position.y,camera.position.z]; let base=dirFrom(P.yaw,P.pitch);
+  if(TOUCH&&P.assistP){ const a=P.assistP, dx=a[0]-eye[0], dy=a[1]-eye[1], dz=a[2]-eye[2], L=Math.hypot(dx,dy,dz); base=[dx/L,dy/L,dz/L]; }
   let anyHit=null, head=false, end=null;
   for(let k=0;k<W.pellets;k++){
     const d=addSpread(base,sp); const r=traceShot(eye,d,W.range,me);
@@ -1215,25 +1306,29 @@ function updateLocal(dt){
     const rt=game.isHost?me.respawnT:Math.max(0,3.2-me.deadT); $('deadt').textContent='Wieder da in '+Math.ceil(rt)+' s';
     return;
   }
-  const k=input.keys, active=!game.overlay&&!!document.pointerLockElement;
+  const k=input.keys, active=!game.overlay&&(TOUCH||!!document.pointerLockElement);
   const W=WEAPONS[P.w], st=stats[P.w], ws=P.ws[P.w];
   let f=0, s=0;
-  if(active){ f=(k.KeyW||k.ArrowUp?1:0)-(k.KeyS||k.ArrowDown?1:0); s=(k.KeyD||k.ArrowRight?1:0)-(k.KeyA||k.ArrowLeft?1:0); }
-  const cDown=active&&!!k.KeyC, hsNow=Math.hypot(P.vel.x,P.vel.z);
-  if(cDown&&!P.cPrev&&hsNow>6&&me.onGround&&P.slideT<=0){ P.slideT=.7; P.slideX=P.vel.x/hsNow; P.slideZ=P.vel.z/hsNow; sfx('jump'); }
+  let mag=1;
+  if(active){ f=(k.KeyW||k.ArrowUp?1:0)-(k.KeyS||k.ArrowDown?1:0); s=(k.KeyD||k.ArrowRight?1:0)-(k.KeyA||k.ArrowLeft?1:0);
+    if(TOUCH){ const m=Math.hypot(TIN.jx,TIN.jy); if(m>.15){ f=-TIN.jy; s=TIN.jx; mag=Math.min(1,(m-.15)/.7); } } }
+  const stickSprint=TOUCH&&Math.hypot(TIN.jx,TIN.jy)>.95&&TIN.jy<-.7;
+  const cDown=active&&(!!k.KeyC||TIN.crouch), hsNow=Math.hypot(P.vel.x,P.vel.z);
+  if(cDown&&!P.cPrev&&hsNow>6&&me.onGround&&P.slideT<=0){ P.slideT=.7; P.slideX=P.vel.x/hsNow; P.slideZ=P.vel.z/hsNow; sfx('jump'); if(TOUCH){ TIN.crouch=false; document.querySelector('#touch .crouch').classList.remove('on'); } }
   P.cPrev=cDown; if(P.slideT>0) P.slideT-=dt;
   P.radarT-=dt; P.adrenT-=dt;
   const crouch=cDown||P.slideT>0; me.crouch=crouch;
-  const aiming=active&&(input.aimM||!!k.KeyQ)&&P.reloadT<=0&&P.switchT<=0;
-  const sprint=active&&(k.ShiftLeft||k.ShiftRight)&&f>0&&!aiming&&!crouch;
+  const aiming=active&&(input.aimM||!!k.KeyQ||TIN.aim)&&P.reloadT<=0&&P.switchT<=0;
+  const sprint=active&&(k.ShiftLeft||k.ShiftRight||stickSprint)&&f>0&&!aiming&&!crouch;
   P.ads=clamp(P.ads+(aiming?1:-1)*dt*(W.scope?6:9),0,1);
   let speed=crouch?2.6:sprint?7.4:5.2; if(P.ads>.5) speed*=.6; if(P.adrenT>0) speed*=1.15;
   const fx=-Math.sin(P.yaw), fz=-Math.cos(P.yaw), rx=Math.cos(P.yaw), rz=-Math.sin(P.yaw);
-  let wx=fx*f+rx*s, wz=fz*f+rz*s; const L=Math.hypot(wx,wz); if(L>0){ wx=wx/L*speed; wz=wz/L*speed; }
+  let wx=fx*f+rx*s, wz=fz*f+rz*s; const L=Math.hypot(wx,wz); if(L>0){ wx=wx/L*speed*mag; wz=wz/L*speed*mag; }
   const acc=me.onGround?14:3;
   P.vel.x+=(wx-P.vel.x)*Math.min(1,acc*dt); P.vel.z+=(wz-P.vel.z)*Math.min(1,acc*dt);
   if(P.slideT>0){ const sp=lerp(3.5,10.5,P.slideT/.7); P.vel.x=P.slideX*sp; P.vel.z=P.slideZ*sp; }
-  if(active&&k.Space&&me.onGround&&!crouch){ P.vel.y=6.4; me.onGround=false; sfx('jump'); }
+  if(active&&(k.Space||TIN.jump)&&me.onGround&&!crouch){ P.vel.y=6.4; me.onGround=false; sfx('jump'); }
+  TIN.jump=false;
   stepEntity(me,P.vel,dt);
   me.yaw=P.yaw; me.pitch=P.pitch; const hs=Math.hypot(P.vel.x,P.vel.z); me.moving=hs;
   // Schritte
@@ -1242,14 +1337,21 @@ function updateLocal(dt){
   P.fireCd-=dt; P.punch*=Math.exp(-6*dt);
   if(P.switchT>0) P.switchT-=dt;
   if(P.reloadT>0){ P.reloadT-=dt; if(P.reloadT<=0){ const need=st.mag-ws.mag, take=Math.min(need,ws.reserve); ws.mag+=take; ws.reserve-=take; updateAmmoHud(); } }
-  if(active&&input.fire&&P.fireCd<=0&&P.switchT<=0&&P.reloadT<=0&&!sprint&&(W.auto||!P.trig)) localFire();
-  P.trig=input.fire;
+  const firing=input.fire||TIN.fire;
+  if(active&&firing&&P.fireCd<=0&&P.switchT<=0&&P.reloadT<=0&&!sprint&&(W.auto||!P.trig)) localFire();
+  P.trig=firing;
   // Kamera
   P.crouchT=clamp(P.crouchT+(crouch?1:-1)*dt*8,0,1);
   P.bob+=dt*hs*1.6*(me.onGround?1:0);
   const bobY=Math.sin(P.bob*2)*.035*Math.min(1,hs/5)*(1-P.ads*.8);
   camera.position.set(me.pos.x,me.pos.y+lerp(1.6,1.06,P.crouchT)+bobY,me.pos.z);
   camera.rotation.set(P.pitch,P.yaw,0);
+  P.assistNear=false; P.assistP=null;
+  if(TOUCH){ const ex=camera.position.x, ey=camera.position.y, ez=camera.position.z, d=dirFrom(P.yaw,P.pitch); let best=.1, bp=null;
+    for(const o of match.ents){ if(o.team===me.team||!o.alive) continue;
+      for(const hh of [1.15,1.62]){ const tx=o.pos.x-ex, ty=o.pos.y+hh*(o.crouch?.72:1)-ey, tz=o.pos.z-ez, Lt=Math.hypot(tx,ty,tz); if(Lt>W.range||Lt<.5) continue;
+        const an=Math.acos(clamp((tx*d[0]+ty*d[1]+tz*d[2])/Lt,-1,1)); if(an<best){ best=an; bp=[o.pos.x,o.pos.y+hh*(o.crouch?.72:1),o.pos.z]; } } }
+    if(bp&&los([ex,ey,ez],bp)){ P.assistNear=true; if(best<.06) P.assistP=bp; } }
   const fov=settings.fov/lerp(1,W.zoom,P.ads); if(Math.abs(camera.fov-fov)>.01){ camera.fov=fov; camera.updateProjectionMatrix(); }
   // Waffenmodell
   P.kick*=Math.exp(-14*dt);
@@ -1318,7 +1420,7 @@ function updateHud(dt){
   updateHpHud(); drawMinimap();
   { const pk=[]; if(P.streak>0) pk.push('SERIE '+P.streak); if(P.radarT>0) pk.push('RADAR '+Math.ceil(P.radarT)+' s'); if(P.adrenT>0) pk.push('ADRENALIN '+Math.ceil(P.adrenT)+' s'); const t=pk.join(' · '); if($('perks').textContent!==t) $('perks').textContent=t; }
   if(!$('board').hidden) renderBoard();
-  $('clickplay').hidden = !(game.state==='playing'&&!game.overlay&&!document.pointerLockElement);
+  $('clickplay').hidden = TOUCH || !(game.state==='playing'&&!game.overlay&&!document.pointerLockElement);
 }
 function renderBoard(){
   const b=$('board'); b.innerHTML='';
@@ -1379,7 +1481,8 @@ function hostTick(dt){
 // Leistung: Auflösung automatisch anpassen
 const Q={ low:{ scale:.6, fog:85 }, mid:{ scale:.85, fog:110 }, high:{ scale:Math.min(devicePixelRatio||1,1.5), fog:130 } };
 let resScale=Q[settings.quality].scale, perfAcc=0, perfN=0;
-function applyQuality(){ resScale=Q[settings.quality].scale; scene.fog.far=Q[settings.quality].fog; resize(); }
+function qScale(q){ if(DEV.touch) return Math.min(devicePixelRatio||1,{low:1,mid:1.4,high:2}[q]||1.4); return Q[q].scale; }
+function applyQuality(){ resScale=qScale(settings.quality); scene.fog.far=Q[settings.quality].fog; resize(); }
 function resize(){ const w=innerWidth, h=innerHeight; renderer.setPixelRatio(resScale); renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); vmCam.aspect=w/h; vmCam.updateProjectionMatrix(); }
 addEventListener('resize',resize);
 let last=performance.now(), menuT=0;
@@ -1387,7 +1490,7 @@ function frame(now){
   requestAnimationFrame(frame);
   let dt=(now-last)/1000; last=now; if(dt>.05) dt=.05; if(dt<=0) return;
   perfAcc+=dt; perfN++;
-  if(perfAcc>2.5){ const fps=perfN/perfAcc; if(fps<42&&resScale>.5){ resScale=Math.max(.5,resScale-.1); resize(); } perfAcc=0; perfN=0; }
+  if(perfAcc>2.5){ const fps=perfN/perfAcc; const minS=DEV.touch?.8:.5; if(fps<42&&resScale>minS){ resScale=Math.max(minS,resScale-.1); resize(); } perfAcc=0; perfN=0; }
   if(match&&(game.state==='playing'||game.state==='end')){
     if(!game.paused){
       match.time+=dt;
@@ -1406,7 +1509,11 @@ function frame(now){
 }
 
 // ================= Eingabe =================
+function mobileEnter(){
+  try{ const d=document.documentElement; if(!document.fullscreenElement&&d.requestFullscreen){ const p=d.requestFullscreen({ navigationUI:'hide' }); if(p&&p.then) p.then(()=>{ try{ const o=screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape'); if(o&&o.catch) o.catch(()=>{}); }catch(e){} }).catch(()=>{}); } }catch(e){}
+}
 function lockPointer(){
+  if(TOUCH){ mobileEnter(); return; }
   try{ const p=canvas.requestPointerLock(); if(p&&p.catch) p.catch(()=>{}); }catch(e){}
 }
 document.addEventListener('pointerlockchange',()=>{
@@ -1451,7 +1558,7 @@ let armoryReturn='menu';
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.hidden=s.id!==id);
   $('ui').hidden=!id; $('ui').classList.toggle('dim',!!id&&game.state!=='menu');
-  refreshTiles();
+  refreshTiles(); syncTouchUi();
 }
 function showMenu(note){
   game.state='menu'; $('m-credits').textContent=profile.credits;
@@ -1500,6 +1607,7 @@ function hostStartMatch(){
 }
 function openPause(){
   game.overlay='pause'; if(game.mode==='solo') game.paused=true;
+  resetTin(); $('b-p-mic').hidden=$('b-p-cam').hidden=game.mode!=='mp';
   $('pause-note').textContent=game.mode==='solo'?'Das Spiel ist angehalten.':'Achtung: Im Mehrspieler läuft das Match weiter.';
   showScreen('scr-pause');
 }
@@ -1531,13 +1639,69 @@ function renderArmory(){
 // Einstellungen
 let settingsReturn='menu';
 const paintQ=makeSeg($('set-q'),[['low','Niedrig'],['mid','Mittel'],['high','Hoch']],()=>settings.quality,v=>{ settings.quality=v; saveSettings(); applyQuality(); });
-function openSettings(from){ settingsReturn=from; paintQ(); $('set-sens').value=settings.sens; $('set-fov').value=settings.fov; $('set-vol').value=settings.vol; $('set-invert').checked=settings.invert; paintVals(); showScreen('scr-settings'); }
+const paintCtrl=makeSeg($('set-ctrl'),[['auto','Automatisch'],['touch','Touch'],['keys','Tastatur']],()=>settings.ctrl,v=>{ settings.ctrl=v; saveSettings(); TOUCH=v==='touch'||(v!=='keys'&&DEV.touch); applyCtrl(); });
+function applyCtrl(){ document.body.classList.toggle('touch',TOUCH); $('help-touch').hidden=!TOUCH; $('help-keys').hidden=TOUCH; devLabel(); syncTouchUi(); }
+function devLabel(){ const t='Erkannt: '+DEV.label+' · '+(TOUCH?'Touch-Steuerung':'Tastatur + Maus'); $('m-dev').textContent=t; $('dev-label').textContent=t; }
+window.__devLabel=devLabel;
+function openSettings(from){ settingsReturn=from; paintQ(); paintCtrl(); $('set-sens').value=settings.sens; $('set-fov').value=settings.fov; $('set-vol').value=settings.vol; $('set-invert').checked=settings.invert; paintVals(); showScreen('scr-settings'); }
 function paintVals(){ $('v-sens').textContent=(+settings.sens).toFixed(2); $('v-fov').textContent=settings.fov+'°'; $('v-vol').textContent=Math.round(settings.vol*100)+' %'; }
 $('set-sens').oninput=e=>{ settings.sens=+e.target.value; paintVals(); saveSettings(); };
 $('set-fov').oninput=e=>{ settings.fov=+e.target.value; paintVals(); saveSettings(); };
 $('set-vol').oninput=e=>{ settings.vol=+e.target.value; paintVals(); saveSettings(); if(master) master.gain.value=settings.vol; };
 $('set-invert').onchange=e=>{ settings.invert=e.target.checked; saveSettings(); };
 $('b-full').onclick=()=>{ try{ if(document.fullscreenElement) document.exitFullscreen(); else { const p=document.documentElement.requestFullscreen(); if(p&&p.catch) p.catch(()=>{}); } }catch(e){} };
+
+// ================= Touch-Steuerung =================
+function resetTin(){ TIN.jx=TIN.jy=0; TIN.fire=false; TIN.jump=false; tptr.clear(); const st=$('stick'); if(st) st.hidden=true; document.querySelectorAll('#touch .tb').forEach(b=>b.classList.remove('down')); }
+function syncTouchUi(){
+  document.body.classList.toggle('playing',game.state==='playing');
+  const show=TOUCH&&game.state==='playing'&&!game.overlay&&$('ui').hidden; $('touch').hidden=!show;
+  if(!show){ TIN.fire=false; TIN.jx=TIN.jy=0; }
+}
+const tptr=new Map();
+function touchLook(dx,dy){
+  if(!match||!match.me.alive||game.overlay) return;
+  const W=WEAPONS[P.w], z=lerp(1,W.zoom,P.ads), s=.0052*settings.sens/Math.pow(z,.85)*(P.assistNear?.55:1);
+  P.yaw-=dx*s; P.pitch=clamp(P.pitch-(settings.invert?-1:1)*dy*s,-1.45,1.45);
+}
+(function setupTouch(){
+  const ov=$('touch'), stick=$('stick'), knob=stick.firstElementChild;
+  ov.addEventListener('pointerdown',e=>{
+    e.preventDefault(); initAudio();
+    try{ ov.setPointerCapture(e.pointerId); }catch(_){}
+    const t=e.target, act=t&&t.dataset?t.dataset.act:null;
+    if(act){
+      t.classList.add('down'); tptr.set(e.pointerId,{ role:act==='fire'?'fire':'btn', el:t, lx:e.clientX, ly:e.clientY });
+      if(act==='fire') TIN.fire=true;
+      else if(act==='aim'){ TIN.aim=!TIN.aim; t.classList.toggle('on',TIN.aim); }
+      else if(act==='crouch'){ TIN.crouch=!TIN.crouch; t.classList.toggle('on',TIN.crouch); }
+      else if(act==='jump') TIN.jump=true;
+      else if(act==='reload') startReload();
+      else if(act==='swap') switchWeapon((P.w+1)%WEAPONS.length);
+      else if(act==='pause'){ tptr.delete(e.pointerId); t.classList.remove('down'); openPause(); }
+      else if(act==='board'){ const b=$('board'); b.hidden=!b.hidden; if(!b.hidden) renderBoard(); }
+      return;
+    }
+    // Waffe unten antippen
+    const slots=$('slots').children; for(let i=0;i<slots.length;i++){ const r=slots[i].getBoundingClientRect(); if(e.clientX>=r.left-4&&e.clientX<=r.right+4&&e.clientY>=r.top-6&&e.clientY<=r.bottom+6){ switchWeapon(i); return; } }
+    const hasMove=[...tptr.values()].some(r=>r.role==='move');
+    if(e.clientX<innerWidth*.42&&!hasMove){ tptr.set(e.pointerId,{ role:'move', x0:e.clientX, y0:e.clientY }); stick.hidden=false; stick.style.left=e.clientX+'px'; stick.style.top=e.clientY+'px'; knob.style.transform=''; }
+    else tptr.set(e.pointerId,{ role:'look', lx:e.clientX, ly:e.clientY });
+  },{ passive:false });
+  ov.addEventListener('pointermove',e=>{
+    const r=tptr.get(e.pointerId); if(!r) return; e.preventDefault();
+    if(r.role==='move'){ let dx=(e.clientX-r.x0)/50, dy=(e.clientY-r.y0)/50; const L=Math.hypot(dx,dy); if(L>1){ dx/=L; dy/=L; } TIN.jx=dx; TIN.jy=dy; knob.style.transform='translate('+(dx*34)+'px,'+(dy*34)+'px)'; }
+    else if(r.role==='look'||r.role==='fire'){ touchLook(e.clientX-r.lx,e.clientY-r.ly); r.lx=e.clientX; r.ly=e.clientY; }
+  },{ passive:false });
+  const end=e=>{
+    const r=tptr.get(e.pointerId); if(!r) return; tptr.delete(e.pointerId);
+    if(r.role==='move'){ TIN.jx=TIN.jy=0; stick.hidden=true; }
+    if(r.el) r.el.classList.remove('down');
+    if(r.role==='fire') TIN.fire=[...tptr.values()].some(x=>x.role==='fire');
+  };
+  ov.addEventListener('pointerup',end); ov.addEventListener('pointercancel',end); ov.addEventListener('lostpointercapture',end);
+  ov.addEventListener('contextmenu',e=>e.preventDefault());
+})();
 
 // Knöpfe
 $('in-name').value=settings.name;
@@ -1562,6 +1726,8 @@ $('b-resume').onclick=resume;
 $('b-p-armory').onclick=()=>openArmory('pause');
 $('b-p-settings').onclick=()=>openSettings('pause');
 $('b-quit').onclick=quitMatch;
+$('b-p-mic').onclick=()=>{ NET.micOn=!NET.micOn; applyMediaToggles(); };
+$('b-p-cam').onclick=()=>{ NET.camOn=!NET.camOn; applyMediaToggles(); };
 $('b-leave').onclick=()=>{ netShutdown(); calledOnce=false; showMenu(); };
 $('b-start').onclick=hostStartMatch;
 $('b-mic').onclick=()=>{ NET.micOn=!NET.micOn; applyMediaToggles(); };
@@ -1583,9 +1749,9 @@ $('b-again').onclick=()=>{
 })();
 // Start
 if(!PeerCls){ $('mp-note').textContent=mpBlockedMsg(); $('mp-note').hidden=false; }
-applyQuality(); buildSlots(); showMenu(PeerCls?null:mpBlockedMsg());
+applyQuality(); buildSlots(); applyCtrl(); showMenu(PeerCls?null:mpBlockedMsg());
 requestAnimationFrame(frame);
-window.__sf={ game, get match(){ return match; }, P, NET, profile, startSolo, boxes, findPath, hostDamage };
+window.__sf={ game, get match(){ return match; }, P, NET, profile, startSolo, boxes, findPath, hostDamage, DEV, TIN, get TOUCH(){ return TOUCH; } };
 })();
 </script>
 <!--SF-BODY-END-->

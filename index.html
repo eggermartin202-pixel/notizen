@@ -220,7 +220,7 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:14px;border:1px solid rgba
 <main id="ui">
   <section id="scr-menu" class="screen menu-wrap">
     <div class="menu-col">
-      <h1 class="logo">STAHL<em>FRONT</em></h1>
+      <h1 class="logo">NOTI<em>ZEN</em></h1>
       <p class="tag">Team-Deathmatch im Browser. Spiel mit Freunden per Raum-Code, Bots füllen jedes Team auf.</p>
       <label class="fld"><span>Dein Name</span><input type="text" id="in-name" maxlength="14" autocomplete="off" spellcheck="false"></label>
       <div class="btns">
@@ -680,7 +680,7 @@ function sfx(kind,vol){
 }
 
 // ================= Spielzustand =================
-const DIFF={ leicht:{ react:.8, turn:3.2, err:.17, settle:1.6, inacc:.035, head:.08 }, mittel:{ react:.46, turn:5.5, err:.1, settle:2.7, inacc:.015, head:.2 }, schwer:{ react:.27, turn:9, err:.055, settle:4.2, inacc:.006, head:.38 } };
+const DIFF={ leicht:{ react:1.15, turn:2.3, err:.28, settle:1.0, inacc:.065, head:.03, dmg:.55 }, mittel:{ react:.8, turn:3.2, err:.18, settle:1.6, inacc:.04, head:.07, dmg:.75 }, schwer:{ react:.48, turn:5, err:.11, settle:2.5, inacc:.018, head:.18, dmg:.95 } };
 const BOTNAMES=['Falke','Wolf','Kobra','Luchs','Viper','Adler','Bär','Fuchs','Hai','Puma','Orca','Rabe','Dachs','Mamba','Jaguar'];
 const LIMITS={1:10,2:15,3:20,4:25,5:30};
 const game={ state:'menu', overlay:null, paused:false, mode:'solo', isHost:true };
@@ -1143,7 +1143,7 @@ function botFire(e){
   let end=null;
   for(let k=0;k<W.pellets;k++){
     const d=addSpread(base,sp); const r=traceShot(eye,d,W.range,e);
-    if(r.ent){ hostDamage(r.ent.id,e.id,W.dmg*(r.head?W.head:1),r.head,e.w); }
+    if(r.ent){ hostDamage(r.ent.id,e.id,W.dmg*(r.head?W.head:1)*(D.dmg||1),r.head,e.w); }
     if(k===0||r.ent) end=r;
   }
   a.errP+=W.recoil*rand(.1,.4); a.errY+=(Math.random()-.5)*W.recoil*.4;
@@ -1574,12 +1574,12 @@ $('b-again').onclick=()=>{
   else { const cfg=match?match.cfg:mkCfg(soloCfg.size,soloCfg.diff); endMatchCleanup(); startMatch(mkCfg(cfg.size,cfg.diff),buildRoster(mkCfg(cfg.size,cfg.diff),[{ name:settings.name, team:0, peer:null }])); }
 };
 
-// Tarnseite: 3x schnell auf "404" klicken oder "stahl" tippen
+// Tarnseite: 3x schnell auf "404" klicken oder "notiz" tippen
 (function(){
   const cover=$('cover'); let clicks=[], typed='';
   const open=()=>{ cover.hidden=true; initAudio(); };
   $('c404').addEventListener('click',()=>{ const n=performance.now(); clicks=clicks.filter(t=>n-t<1500); clicks.push(n); if(clicks.length>=3) open(); });
-  document.addEventListener('keydown',e=>{ if(cover.hidden) return; typed=(typed+(e.key||'')).slice(-5).toLowerCase(); if(typed==='stahl') open(); });
+  document.addEventListener('keydown',e=>{ if(cover.hidden) return; typed=(typed+(e.key||'')).slice(-5).toLowerCase(); if(typed==='notiz') open(); });
 })();
 // Start
 if(!PeerCls){ $('mp-note').textContent=mpBlockedMsg(); $('mp-note').hidden=false; }

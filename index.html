@@ -1310,7 +1310,7 @@ function dgunInit(){ if(DGUN.m){ scene.remove(DGUN.m); DGUN.m=null; } DGUN.holde
 function dgunPlace(){ const p=randomFreePoint(0); DGUN.x=p.x; DGUN.z=p.z; DGUN.holder=-1; DGUN.vis=true; DGUN.t=0; }
 function dgunHost(dt){
   if(!DGUN.m) return;
-  if(DGUN.holder>=0){ const h=match.byId[DGUN.holder]; if(!h||!h.alive){ DGUN.holder=-1; DGUN.vis=false; DGUN.t=15; } return; }
+  if(DGUN.holder>=0){ const h=match.byId[DGUN.holder]; if(!h||!h.alive||h.isBot){ DGUN.holder=-1; DGUN.vis=false; DGUN.t=15; } return; }
   if(!DGUN.vis){ DGUN.t-=dt; if(DGUN.t<=0){ dgunPlace(); dgunEv({ ev:'spawn' }); } return; }
   for(const e of match.ents){ if(e.isBot||!e.alive) continue; if(Math.hypot(e.pos.x-DGUN.x,e.pos.z-DGUN.z)<1.4&&e.pos.y<1.2){ DGUN.holder=e.id; DGUN.vis=false; dgunEv({ ev:'take', id:e.id }); break; } }
 }
@@ -1688,6 +1688,7 @@ function onKill(d){
   if(v===match.me){ P.streak=0; P.multi=0; P.adrenT=0; }
   if(k===match.me){ const c=50+(d.h?25:0); profile.credits+=c; profile.kills++; match.earned=(match.earned||0)+c; saveProfile(); popup('+'+c+(d.h?' KOPFSCHUSS':'')); sfx('kill'); flashHit(true); }
   if(v===match.me) dropDogGun();
+  if(v===match.me){ P.killer=k.id; P.ads=0; input.aimM=false; input.fire=false; TIN.aim=false; TIN.fire=false; { const ab=document.querySelector('#touch .aim'); if(ab) ab.classList.remove('on'); } $('reticle').hidden=true; camera.fov=settings.fov; camera.updateProjectionMatrix(); }
   if(v===match.me){ $('dead').hidden=false; $('deadby').textContent='von '+k.name+' ('+(WEAPONS[d.w]?WEAPONS[d.w].short:'')+(d.h?', Kopfschuss':'')+')'; P.ads=0; $('scope').hidden=true; updateHpHud(); sfx('hurt'); }
 }
 function announce(t,sub,say){ if(say!==false) speak(say||t.charAt(0)+t.slice(1).toLowerCase()); const a=$('announce'); a.querySelector('b').textContent=t; a.querySelector('small').textContent=sub||''; a.style.opacity=1; annT=2.4; }
@@ -1911,7 +1912,11 @@ function showProj(d){ if(!match) return; const e=match.byId[d.id]; if(!e||e===ma
 function updateLocal(dt){
   const me=match.me;
   if(!me.alive){ // Todeskamera
-    me.deadT+=dt; camera.position.set(me.pos.x,me.pos.y+lerp(1.56,.5,Math.min(1,me.deadT*1.5)),me.pos.z); camera.rotation.set(P.pitch,P.yaw,Math.min(.5,me.deadT));
+    me.deadT+=dt; P.ads=0; if(Math.abs(camera.fov-settings.fov)>.01){ camera.fov=settings.fov; camera.updateProjectionMatrix(); }
+    const ky=me.pos.y+lerp(1.56,.6,Math.min(1,me.deadT*1.5)); camera.position.set(me.pos.x,ky,me.pos.z);
+    const kk=match.byId[P.killer]; if(kk&&kk!==me&&me.deadT>.35){ const dx=kk.pos.x-me.pos.x, dz=kk.pos.z-me.pos.z, dy=kk.pos.y+1.3-ky, hd=Math.hypot(dx,dz)||1; const f=Math.min(1,dt*4);
+      P.yaw+=angDiff(P.yaw,Math.atan2(-dx,-dz))*f; P.pitch=lerp(P.pitch,Math.atan2(dy,hd),f); camera.rotation.set(P.pitch,P.yaw,0); }
+    else camera.rotation.set(P.pitch,P.yaw,Math.min(.35,me.deadT));
     const rt=game.isHost?me.respawnT:Math.max(0,3.2-me.deadT); $('deadt').textContent='Wieder da in '+Math.ceil(rt)+' s';
     return;
   }
@@ -2407,32 +2412,43 @@ function spin(dog,strip,reel,res,btns){
 }
 
 // ================= Raumliste (ohne Server) =================
-const REG={ id:'notizen-registry-v1', peer:null, isReg:false, conn:null, rooms:{}, list:[], listCb:null, starting:false, lostT:0 };
+// Drei Listen-Führer: jeder Browser verbindet sich mit allen, die er erreicht. Fällt einer aus oder ist unerreichbar, helfen die anderen.
+const REG={ ids:['notizen-registry-v1','notizen-registry-v1-b','notizen-registry-v1-c'], peer:null, own:null, ownIdx:-1, conns:{}, pend:{}, lists:{}, rooms:{}, listCb:null, started:false, claiming:false };
 function roomName(){ const v=$('in-room').value.trim(); return (v||settings.name+'s Raum').slice(0,24); }
-function regStart(){ if(!PeerCls||REG.peer||REG.starting) return; REG.starting=true; regClaim(); }
-function regClaim(){
-  let p, done=false; try{ p=new PeerCls(REG.id,{ debug:0 }); }catch(e){ REG.starting=false; return; }
-  p.on('open',()=>{ done=true; REG.peer=p; REG.isReg=true; REG.starting=false; p.on('connection',c=>{ c.on('data',d=>regServe(c,d)); }); regTick(); });
-  p.on('error',err=>{ if(done) return; done=true; try{ p.destroy(); }catch(_){} if(err.type==='unavailable-id') regAsClient(); else REG.starting=false; });
+function regStart(){
+  if(!PeerCls||REG.started) return; REG.started=true;
+  let p; try{ p=new PeerCls(undefined,{ debug:0 }); }catch(e){ REG.started=false; return; }
+  REG.peer=p;
+  p.on('open',()=>{ REG.ids.forEach((_,i)=>setTimeout(()=>regLink(i),i*400)); });
+  p.on('error',err=>{ if(err.type==='peer-unavailable'){ const i=REG.ids.findIndex(id=>String(err.message||'').endsWith(id)); if(i>=0) regFail(i); } });
   p.on('disconnected',()=>{ try{ p.reconnect(); }catch(_){} });
 }
-function regAsClient(){
-  let p; try{ p=new PeerCls(undefined,{ debug:0 }); }catch(e){ REG.starting=false; return; }
-  REG.peer=p; REG.isReg=false;
-  p.on('open',()=>{ REG.starting=false; regConnect(); });
-  p.on('error',err=>{ if(err.type==='peer-unavailable') regLost(); });
+function regLink(i){
+  if(!REG.peer||REG.peer.destroyed||REG.ownIdx===i||REG.conns[i]||REG.pend[i]) return;
+  let c; try{ c=REG.peer.connect(REG.ids[i],{ reliable:true }); }catch(e){ return; }
+  REG.pend[i]=setTimeout(()=>{ try{ c.close(); }catch(_){} regFail(i); },7000);
+  c.on('open',()=>{ clearTimeout(REG.pend[i]); delete REG.pend[i]; REG.conns[i]=c; regTick(); });
+  c.on('data',d=>{ if(d&&d.t==='rooms'&&Array.isArray(d.rooms)){ REG.lists[i]={ rooms:d.rooms, t:performance.now() }; regEmit(); } });
+  const lost=()=>{ if(REG.conns[i]===c){ delete REG.conns[i]; delete REG.lists[i]; setTimeout(()=>regFail(i),300+Math.random()*1500); } };
+  c.on('close',lost); c.on('error',lost);
 }
-function regConnect(){
-  if(!REG.peer||REG.isReg) return;
-  const c=REG.peer.connect(REG.id,{ reliable:true }); REG.conn=c;
-  c.on('open',()=>regTick());
-  c.on('data',d=>{ if(d&&d.t==='rooms'&&Array.isArray(d.rooms)){ REG.list=d.rooms; if(REG.listCb) REG.listCb(d.rooms); } });
-  c.on('close',regLost); c.on('error',regLost);
+function regFail(i){
+  if(REG.pend[i]){ clearTimeout(REG.pend[i]); delete REG.pend[i]; }
+  if(REG.ownIdx===i) return;
+  if(REG.ownIdx<0) regClaim(i);
+  setTimeout(()=>regLink(i),15000);
 }
-function regLost(){
-  if(REG.isReg) return; const n=performance.now(); if(n-REG.lostT<2000) return; REG.lostT=n; REG.conn=null;
-  setTimeout(()=>{ if(REG.isReg||REG.starting) return; const old=REG.peer; REG.peer=null; try{ if(old) old.destroy(); }catch(_){} REG.starting=true; regClaim(); },300+Math.random()*1500);
+function regClaim(i){
+  if(REG.ownIdx>=0||REG.claiming) return; REG.claiming=true;
+  let p, done=false; try{ p=new PeerCls(REG.ids[i],{ debug:0 }); }catch(e){ REG.claiming=false; return; }
+  p.on('open',()=>{ done=true; REG.claiming=false; if(REG.ownIdx>=0){ try{ p.destroy(); }catch(_){} return; } REG.own=p; REG.ownIdx=i; p.on('connection',c=>{ c.on('data',d=>regServe(c,d)); }); regTick(); });
+  p.on('error',()=>{ if(done) return; done=true; REG.claiming=false; try{ p.destroy(); }catch(_){} });
+  p.on('disconnected',()=>{ try{ p.reconnect(); }catch(_){} });
 }
+function regEmit(){ if(!REG.listCb) return; const all={}, n=performance.now();
+  if(REG.ownIdx>=0) for(const r of regRooms()) all[r.code]=r;
+  for(const k in REG.lists){ const L=REG.lists[k]; if(n-L.t>15000) continue; for(const r of L.rooms) if(!all[r.code]) all[r.code]=r; }
+  REG.listCb(Object.values(all)); }
 function regRooms(){ const n=performance.now(); for(const k in REG.rooms) if(n-REG.rooms[k].t>12000) delete REG.rooms[k]; return Object.values(REG.rooms).map(r=>({ code:r.code, name:r.name, n:r.n, max:r.max, map:r.map, state:r.state })); }
 function regServe(c,d){
   if(!d||typeof d!=='object') return;
@@ -2441,8 +2457,9 @@ function regServe(c,d){
   if(d.t==='list'||d.t==='announce'){ try{ c.send({ t:'rooms', rooms:regRooms() }); }catch(_){} }
 }
 function regSend(o){
-  if(REG.isReg) regServe({ send:d=>{ REG.list=d.rooms; if(REG.listCb) REG.listCb(d.rooms); } },o);
-  else if(REG.conn&&REG.conn.open){ try{ REG.conn.send(o); }catch(_){} }
+  if(REG.ownIdx>=0) regServe({ send:()=>{} },o);
+  for(const k in REG.conns){ const c=REG.conns[k]; if(c&&c.open){ try{ c.send(o); }catch(_){} } }
+  regEmit();
 }
 function myRoom(){ if(!(game.mode==='mp'&&game.isHost&&NET.lobby&&NET.code)||NET.lobby.private) return null; const L=NET.lobby;
   const tm=MAPS[L.cfg.map]&&MAPS[L.cfg.map].teams;
@@ -2576,7 +2593,7 @@ try{ if(window.speechSynthesis) speechSynthesis.cancel(); }catch(e){}
 if(!PeerCls){ $('mp-note').textContent=mpBlockedMsg(); $('mp-note').hidden=false; }
 loadMap(store.get('lastMap','depot')); applyQuality(); buildSlots(); applyCtrl(); showMenu(PeerCls?null:mpBlockedMsg());
 requestAnimationFrame(frame);
-window.__sf={ SUP, DGUN, hostTake, get DOG(){ return DOG; }, poops, projs, get LOAD(){ return LOAD; }, switchWeapon, fire:()=>localFire(), loadMap, MAPS, get MAP(){ return MAP; }, game, get match(){ return match; }, P, NET, profile, startSolo, boxes, findPath, hostDamage, DEV, TIN, get TOUCH(){ return TOUCH; } };
+window.__sf={ input, camFov:()=>camera.fov, camY:()=>camera.position.y, SUP, DGUN, hostTake, get DOG(){ return DOG; }, poops, projs, get LOAD(){ return LOAD; }, switchWeapon, fire:()=>localFire(), loadMap, MAPS, get MAP(){ return MAP; }, game, get match(){ return match; }, P, NET, profile, startSolo, boxes, findPath, hostDamage, DEV, TIN, get TOUCH(){ return TOUCH; } };
 })();
 </script>
 <!--SF-BODY-END-->

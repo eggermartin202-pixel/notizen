@@ -501,7 +501,7 @@ const WEAPONS = [
   { id:'pistol',  name:'P9 Pistole',          short:'P9',     dmg:30, rpm:400, auto:false, mag:12, reserve:84,  reload:1.1, spread:.014, aim:.004,  pellets:1, range:110, head:1.8, zoom:1.15, recoil:.022, len:.25 },
   { id:'rifle',   name:'K-47 Sturmgewehr',    short:'K-47',   dmg:24, rpm:620, auto:true,  mag:30, reserve:180, reload:1.9, spread:.032, aim:.007,  pellets:1, range:150, head:1.6, zoom:1.35, recoil:.016, len:.6 },
   { id:'shotgun', name:'Brecher Schrotflinte',short:'Brecher',dmg:14, rpm:72,  auto:false, mag:6,  reserve:36,  reload:2.3, spread:.085, aim:.06,   pellets:9, range:38,  head:1.3, zoom:1.1,  recoil:.07,  len:.7 },
-  { id:'sniper',  name:'Falke Präzisionsgewehr',short:'Falke',dmg:95, rpm:46,  auto:false, mag:5,  reserve:30,  reload:2.6, spread:.07,  aim:.0004, pellets:1, range:300, head:2.2, zoom:4,    recoil:.085, len:.9, scope:true },
+  { id:'sniper',  name:'Falke Präzisionsgewehr',short:'Falke',dmg:72, rpm:40,  auto:false, mag:5,  reserve:25,  reload:2.9, spread:.09,  aim:.0006, pellets:1, range:300, head:2.2, zoom:4,    recoil:.095, len:.9, scope:true, slow:.92 },
   { id:'smg',     name:'Wespe Maschinenpistole',short:'Wespe',dmg:17, rpm:920, auto:true,  mag:32, reserve:224, reload:1.6, spread:.04,  aim:.013,  pellets:1, range:70,  head:1.5, zoom:1.25, recoil:.012, len:.42, price:800 },
   { id:'revolver',name:'Donner Revolver',     short:'Donner', dmg:58, rpm:150, auto:false, mag:6,  reserve:48,  reload:2.1, spread:.02,  aim:.003,  pellets:1, range:120, head:2.0, zoom:1.2,  recoil:.06,  len:.3,  price:1200 },
   { id:'lmg',     name:'Hammer Maschinengewehr',short:'Hammer',dmg:25, rpm:680, auto:true, mag:75, reserve:300, reload:3.8, spread:.045, aim:.011,  pellets:1, range:150, head:1.5, zoom:1.3,  recoil:.014, len:.8,  price:1800, slow:.88 }
@@ -1590,7 +1590,7 @@ function updateLocal(dt){
   const crouch=cDown||P.slideT>0; me.crouch=crouch;
   const aiming=active&&(input.aimM||!!k.KeyQ||TIN.aim)&&P.reloadT<=0&&P.switchT<=0;
   const sprint=active&&(k.ShiftLeft||k.ShiftRight||stickSprint)&&f>0&&!aiming&&!crouch;
-  P.ads=clamp(P.ads+(aiming?1:-1)*dt*(isScoped(P.w)?6:9),0,1);
+  P.ads=clamp(P.ads+(aiming?1:-1)*dt*(WEAPONS[P.w].scope?4.2:isScoped(P.w)?6:9),0,1);
   let speed=(crouch?2.6:sprint?7.4:5.2)*(W.slow||1); if(P.ads>.5) speed*=.6; if(P.adrenT>0) speed*=1.15;
   const fx=-Math.sin(P.yaw), fz=-Math.cos(P.yaw), rx=Math.cos(P.yaw), rz=-Math.sin(P.yaw);
   let wx=fx*f+rx*s, wz=fz*f+rz*s; const L=Math.hypot(wx,wz); if(L>0){ wx=wx/L*speed*mag; wz=wz/L*speed*mag; }

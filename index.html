@@ -114,6 +114,13 @@ input[type=range]{width:100%;accent-color:var(--amber)}
 .ritem{width:100px;height:100px;flex:none;display:flex;align-items:flex-end;border-bottom:5px solid;font-size:12px;font-weight:700;padding:4px;line-height:1.1;text-shadow:0 1px 2px #000,0 0 4px #000}
 .reel .marker{position:absolute;left:50%;top:0;bottom:0;width:3px;margin-left:-1px;background:var(--amber);box-shadow:0 0 10px var(--amber);z-index:2}
 .crate-res{font-size:19px;font-weight:700;min-height:1.4em}
+.lbwrap{max-height:48vh;overflow-y:auto;border:1px solid rgba(255,255,255,.08)}
+.lbt{width:100%;border-collapse:collapse;font-size:17px;font-variant-numeric:tabular-nums}
+.lbt th{position:sticky;top:0;background:#151a1e;text-align:left;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:8px 10px}
+.lbt td{padding:7px 10px;border-top:1px solid rgba(255,255,255,.06)}
+.lbt .r{width:46px;color:var(--muted)} .lbt .v{text-align:right;width:120px}
+.lbt tr.me td{color:var(--amber);background:rgba(232,176,74,.08);font-weight:700}
+.lbt tr.top1 .r{color:#ffd24a}.lbt tr.top2 .r{color:#d8dde2}.lbt tr.top3 .r{color:#d08a4a}
 .rooms{display:flex;flex-direction:column;gap:6px;max-height:42vh;overflow-y:auto}
 .room{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;padding:9px 12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08)}
 .room b{font-size:19px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -321,6 +328,7 @@ body.touch #board{max-height:80vh;overflow:auto}
         <button id="b-join" class="btn">Lobbys</button>
         <button id="b-armory" class="btn ghost">Waffenkammer</button>
         <button id="b-settings" class="btn ghost">Einstellungen</button>
+        <button id="b-lb" class="btn ghost">Rangliste</button>
         <button id="b-help" class="btn ghost">Steuerung</button>
       </div>
       <div class="credits">Credits <b id="m-credits">0</b></div>
@@ -430,6 +438,15 @@ body.touch #board{max-height:80vh;overflow:auto}
     <p class="note">Serien ohne zu sterben: 3 Abschüsse = Radar (alle Gegner auf der Minikarte), 5 = Adrenalin (schneller laufen, schießen, nachladen), 8 = Kriegsheld. Leben lädt sich nach 4 Sekunden ohne Treffer wieder auf.</p>
     <p class="note">Chromebook-Touchpad: Rechtsklick = mit zwei Fingern tippen. Bequemer zum Zielen ist <kbd>Q</kbd>.</p>
     <div class="acts"><button class="btn primary" data-back="scr-menu">Verstanden</button></div>
+  </section>
+
+  <section id="scr-lb" class="screen panel wide" hidden>
+    <h2>Rangliste</h2>
+    <div class="seg" id="lb-tabs"></div>
+    <div class="lbwrap"><table class="lbt"><thead><tr><th class="r">#</th><th>Name</th><th class="v" id="lb-head">Spielzeit</th></tr></thead><tbody id="lb-body"></tbody></table></div>
+    <p class="note" id="lb-me"></p>
+    <p class="note">Die Rangliste tauscht sich mit allen aus, die gerade online sind. Neue Spieler erscheinen, sobald sie mal gleichzeitig mit anderen online waren.</p>
+    <div class="acts"><button class="btn primary" data-back="scr-menu">Zurück</button></div>
   </section>
 
   <section id="scr-pause" class="screen panel" hidden>
@@ -1686,7 +1703,7 @@ function onKill(d){
   addFeed(k,v,WEAPONS[d.w]?WEAPONS[d.w].short:'',d.h);
   if(k===match.me) onMyKill();
   if(v===match.me){ P.streak=0; P.multi=0; P.adrenT=0; }
-  if(k===match.me){ const c=20+(d.h?10:0); profile.credits+=c; profile.kills++; match.earned=(match.earned||0)+c; saveProfile(); popup('+'+c+(d.h?' KOPFSCHUSS':'')); sfx('kill'); flashHit(true); }
+  if(k===match.me){ const c=20+(d.h?10:0); profile.credits+=c; profile.earned=(profile.earned||0)+c; profile.kills++; match.earned=(match.earned||0)+c; saveProfile(); popup('+'+c+(d.h?' KOPFSCHUSS':'')); sfx('kill'); flashHit(true); }
   if(v===match.me) dropDogGun();
   if(v===match.me){ P.killer=k.id; P.ads=0; input.aimM=false; input.fire=false; TIN.aim=false; TIN.fire=false; { const ab=document.querySelector('#touch .aim'); if(ab) ab.classList.remove('on'); } $('reticle').hidden=true; camera.fov=settings.fov; camera.updateProjectionMatrix(); }
   if(v===match.me){ $('dead').hidden=false; $('deadby').textContent='von '+k.name+' ('+(WEAPONS[d.w]?WEAPONS[d.w].short:'')+(d.h?', Kopfschuss':'')+')'; P.ads=0; $('scope').hidden=true; updateHpHud(); sfx('hurt'); }
@@ -1700,13 +1717,13 @@ function onMyKill(){
   if(P.streak===3||P.streak===5||P.streak===8) sfx('streak');
   if(P.streak===3){ P.radarT=15; announce('RADAR','3er-Serie: alle Gegner 15 s auf der Minikarte'); }
   if(P.streak===5){ P.adrenT=20; announce('ADRENALIN','5er-Serie: schneller laufen, schießen und nachladen'); }
-  if(P.streak===8){ P.radarT=30; P.adrenT=30; profile.credits+=40; saveProfile(); announce('KRIEGSHELD','8er-Serie: Radar + Adrenalin 30 s, +40 Credits'); }
+  if(P.streak===8){ P.radarT=30; P.adrenT=30; profile.credits+=40; profile.earned=(profile.earned||0)+40; saveProfile(); announce('KRIEGSHELD','8er-Serie: Radar + Adrenalin 30 s, +40 Credits'); }
 }
 function onEnd(d){
   match.over=true; if(d.roster) for(const r of d.roster){ const e=match.byId[r.id]; if(e){ e.kills=r.kills; e.deaths=r.deaths; } }
   match.score=d.score;
   const myT=match.me.team, res=d.win===-1?'draw':d.win===myT?'win':'lose';
-  const bonus=res==='win'?60:res==='draw'?30:20; profile.credits+=bonus; profile.matches++; if(res==='win') profile.wins++; saveProfile();
+  const bonus=res==='win'?60:res==='draw'?30:20; profile.credits+=bonus; profile.earned=(profile.earned||0)+bonus; profile.matches++; if(res==='win') profile.wins++; saveProfile();
   match.earned=(match.earned||0)+bonus;
   game.state='end'; if(document.pointerLockElement) document.exitPointerLock();
   speak(res==='win'?'Sieg':res==='lose'?'Niederlage':'Unentschieden');
@@ -2161,6 +2178,7 @@ function renderFrame(showVM){
 }
 addEventListener('resize',resize);
 let last=performance.now(), menuT=0;
+let ptSave=0;
 function frame(now){
   requestAnimationFrame(frame);
   let dt=(now-last)/1000; last=now; if(dt>.05) dt=.05; if(dt<=0) return;
@@ -2168,7 +2186,7 @@ function frame(now){
   if(perfAcc>2.5){ const fps=perfN/perfAcc; const minS=DEV.touch?.8:.5; if(fps<42&&resScale>minS){ resScale=Math.max(minS,resScale-.1); resize(); } perfAcc=0; perfN=0; }
   if(match&&(game.state==='playing'||game.state==='end')){
     if(!game.paused){
-      match.time+=dt;
+      match.time+=dt; if(game.state==='playing'){ profile.playTime=(profile.playTime||0)+dt; ptSave+=dt; if(ptSave>15){ ptSave=0; saveProfile(); } }
       if(!game.isHost&&!match.over) match.timeLeft=Math.max(0,match.timeLeft-dt);
       if(game.isHost&&!match.over){ hostTick(dt); if(DOG) dogHost(dt); supHost(dt); dgunHost(dt); }
       dogVisual(dt); updateProjs(dt); updatePoops(dt); supVisual(); dgunVisual(dt);
@@ -2428,7 +2446,7 @@ function regLink(i){
   let c; try{ c=REG.peer.connect(REG.ids[i],{ reliable:true }); }catch(e){ return; }
   REG.pend[i]=setTimeout(()=>{ try{ c.close(); }catch(_){} regFail(i); },7000);
   c.on('open',()=>{ clearTimeout(REG.pend[i]); delete REG.pend[i]; REG.conns[i]=c; regTick(); });
-  c.on('data',d=>{ if(d&&d.t==='rooms'&&Array.isArray(d.rooms)){ REG.lists[i]={ rooms:d.rooms, t:performance.now() }; regEmit(); } });
+  c.on('data',d=>{ if(d&&d.t==='rooms'&&Array.isArray(d.rooms)){ REG.lists[i]={ rooms:d.rooms, t:performance.now() }; regEmit(); } if(d&&d.t==='lbr') lbMerge(d.e); });
   const lost=()=>{ if(REG.conns[i]===c){ delete REG.conns[i]; delete REG.lists[i]; setTimeout(()=>regFail(i),300+Math.random()*1500); } };
   c.on('close',lost); c.on('error',lost);
 }
@@ -2455,6 +2473,7 @@ function regServe(c,d){
   if(d.t==='announce'&&d.room&&/^[A-Z0-9]{4}$/.test(String(d.room.code))){ const r=d.room; REG.rooms[r.code]={ code:r.code, name:String(r.name||'Raum').slice(0,24), n:clamp(r.n|0,0,10), max:clamp(r.max|0,0,10), map:String(r.map||'').slice(0,16), state:r.state==='game'?'game':'lobby', t:performance.now() }; }
   if(d.t==='remove'&&d.code) delete REG.rooms[String(d.code)];
   if(d.t==='list'||d.t==='announce'){ try{ c.send({ t:'rooms', rooms:regRooms() }); }catch(_){} }
+  if(d.t==='lb'){ lbMerge(d.e); try{ c.send({ t:'lbr', e:lbTop(60) }); }catch(_){} }
 }
 function regSend(o){
   if(REG.ownIdx>=0) regServe({ send:()=>{} },o);
@@ -2464,7 +2483,33 @@ function regSend(o){
 function myRoom(){ if(!(game.mode==='mp'&&game.isHost&&NET.lobby&&NET.code)||NET.lobby.private) return null; const L=NET.lobby;
   const tm=MAPS[L.cfg.map]&&MAPS[L.cfg.map].teams;
   return { code:NET.code, name:L.name, n:L.players.length, max:tm?22:Math.max(L.cfg.size*2,L.players.length), map:MAPS[L.cfg.map]?MAPS[L.cfg.map].name:'Zufall', state:(match&&!match.over)?'game':'lobby' }; }
-function regTick(){ if(!REG.peer) return; const r=myRoom(); if(r) regSend({ t:'announce', room:r }); else if(REG.listCb) regSend({ t:'list' }); }
+// ================= Rangliste =================
+if(!profile.uid){ profile.uid=Array.from({ length:12 },()=>'abcdefghijkmnpqrstuvwxyz23456789'[Math.random()*32|0]).join(''); saveProfile(); }
+const LB=store.get('lb',{});
+function lbMine(){ return { id:profile.uid, n:settings.name, pt:Math.floor(profile.playTime||0), k:profile.kills|0, c:Math.floor(profile.earned||0), t:Date.now() }; }
+function lbClean(e){ if(!e||typeof e!=='object'||typeof e.id!=='string'||!/^[a-z0-9]{6,16}$/.test(e.id)) return null;
+  return { id:e.id, n:String(e.n||'Spieler').slice(0,14), pt:clamp(Math.floor(+e.pt||0),0,1e7), k:clamp(Math.floor(+e.k||0),0,1e6), c:clamp(Math.floor(+e.c||0),0,1e8), t:clamp(+e.t||0,0,Date.now()+864e5) }; }
+function lbMerge(list){ if(!Array.isArray(list)) return; let ch=false;
+  for(const raw of list.slice(0,200)){ const e=lbClean(raw); if(!e||e.id===profile.uid) continue; const o=LB[e.id]; if(!o||e.t>o.t){ LB[e.id]=e; ch=true; } }
+  const ids=Object.keys(LB); if(ids.length>400){ ids.sort((a,b)=>LB[a].t-LB[b].t).slice(0,ids.length-400).forEach(k=>delete LB[k]); }
+  if(ch){ store.set('lb',LB); if(!$('scr-lb').hidden) renderLB(); } }
+function lbAll(){ const all=Object.values(LB).filter(e=>e.id!==profile.uid); all.push(lbMine()); return all; }
+function lbTop(n){ const all=lbAll(), pick=new Map(); for(const key of ['pt','k','c']) [...all].sort((a,b)=>b[key]-a[key]).slice(0,n).forEach(e=>pick.set(e.id,e)); return [...pick.values()]; }
+let lbTab='pt', lbTick=0;
+const LBT={ pt:'Spielzeit', k:'Kills', c:'Coins verdient' };
+const fmtPT=s=>{ s=Math.floor(s); const h=Math.floor(s/3600), m=Math.floor(s%3600/60); return h>0?h+' h '+String(m).padStart(2,'0')+' min':m+' min'; };
+const paintLbTabs=makeSeg($('lb-tabs'),[['pt','Spielzeit'],['k','Kills'],['c','Coins']],()=>lbTab,v=>{ lbTab=v; renderLB(); });
+function renderLB(){
+  paintLbTabs(); $('lb-head').textContent=LBT[lbTab];
+  const all=lbAll().sort((a,b)=>b[lbTab]-a[lbTab]||a.n.localeCompare(b.n)), body=$('lb-body'); body.innerHTML='';
+  const myRank=all.findIndex(e=>e.id===profile.uid)+1;
+  all.slice(0,50).forEach((e,i)=>{ const tr=document.createElement('tr'); if(e.id===profile.uid) tr.className='me'; else if(i<3) tr.className='top'+(i+1);
+    if(e.id===profile.uid&&i<3) tr.className='me top'+(i+1);
+    const r=document.createElement('td'); r.className='r'; r.textContent=i+1; const n=document.createElement('td'); n.textContent=e.n+(e.id===profile.uid?' (du)':'');
+    const v=document.createElement('td'); v.className='v'; v.textContent=lbTab==='pt'?fmtPT(e.pt):e[lbTab].toLocaleString('de-DE'); tr.append(r,n,v); body.appendChild(tr); });
+  const me=lbMine(); $('lb-me').textContent='Du: Platz '+myRank+' von '+all.length+' · '+fmtPT(me.pt)+' gespielt · '+me.k+' Kills · '+me.c.toLocaleString('de-DE')+' Coins verdient';
+}
+function regTick(){ lbTick++; if(REG.peer&&lbTick%3===0) regSend({ t:'lb', e:lbTop(30) }); if(!REG.peer) return; const r=myRoom(); if(r) regSend({ t:'announce', room:r }); else if(REG.listCb) regSend({ t:'list' }); }
 setInterval(regTick,3500);
 function renderRooms(list){
   const box=$('room-list'); if(!box||$('scr-join').hidden) return; box.innerHTML='';
@@ -2559,6 +2604,7 @@ $('in-code').addEventListener('input',e=>{ e.target.value=e.target.value.toUpper
 $('b-armory').onclick=()=>openArmory('menu');
 $('b-settings').onclick=()=>openSettings('menu');
 $('b-help').onclick=()=>showScreen('scr-help');
+$('b-lb').onclick=()=>{ saveProfile(); renderLB(); showScreen('scr-lb'); regStart(); regSend({ t:'lb', e:lbTop(30) }); };
 document.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>{ if(b.dataset.back==='scr-menu') showMenu(); else showScreen(b.dataset.back); });
 $('b-arm-back').onclick=()=>{ if(armoryReturn==='game'&&game.state==='playing') resume(); else if(armoryReturn==='pause') showScreen('scr-pause'); else if(armoryReturn==='end') showScreen('scr-end'); else showMenu(); };
 $('b-set-back').onclick=()=>{ if(settingsReturn==='pause') showScreen('scr-pause'); else showMenu(); };
@@ -2591,9 +2637,10 @@ try{ if(window.speechSynthesis) speechSynthesis.cancel(); }catch(e){}
 })();
 // Start
 if(!PeerCls){ $('mp-note').textContent=mpBlockedMsg(); $('mp-note').hidden=false; }
+setTimeout(()=>{ try{ regStart(); }catch(e){} },2500);
 loadMap(store.get('lastMap','depot')); applyQuality(); buildSlots(); applyCtrl(); showMenu(PeerCls?null:mpBlockedMsg());
 requestAnimationFrame(frame);
-window.__sf={ input, camFov:()=>camera.fov, camY:()=>camera.position.y, SUP, DGUN, hostTake, get DOG(){ return DOG; }, poops, projs, get LOAD(){ return LOAD; }, switchWeapon, fire:()=>localFire(), loadMap, MAPS, get MAP(){ return MAP; }, game, get match(){ return match; }, P, NET, profile, startSolo, boxes, findPath, hostDamage, DEV, TIN, get TOUCH(){ return TOUCH; } };
+window.__sf={ LB, lbMerge, renderLB, input, camFov:()=>camera.fov, camY:()=>camera.position.y, SUP, DGUN, hostTake, get DOG(){ return DOG; }, poops, projs, get LOAD(){ return LOAD; }, switchWeapon, fire:()=>localFire(), loadMap, MAPS, get MAP(){ return MAP; }, game, get match(){ return match; }, P, NET, profile, startSolo, boxes, findPath, hostDamage, DEV, TIN, get TOUCH(){ return TOUCH; } };
 })();
 </script>
 <!--SF-BODY-END-->

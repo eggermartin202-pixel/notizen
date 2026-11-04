@@ -381,7 +381,7 @@ body.touch #board{max-height:80vh;overflow:auto}
 
   <section id="scr-armory" class="screen panel wide" hidden>
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap"><h2>Waffenkammer</h2><div class="credits">Credits <b id="a-credits">0</b></div></div>
-    <p class="note">Credits gibt es für Abschüsse (50, Kopfschuss +25) und am Match-Ende (Sieg 150). Alles bleibt gespeichert.</p>
+    <p class="note">Credits gibt es für Abschüsse (20, Kopfschuss +10) und am Match-Ende (Sieg 60). Alles bleibt gespeichert.</p>
     <div class="seg" id="arm-tabs"></div>
     <div class="arm-grid" id="arm-grid"></div>
     <div class="acts"><button id="b-arm-back" class="btn primary">Zurück</button></div>
@@ -534,7 +534,7 @@ CAMOS.galaxie={ name:'Galaxie', price:0, tex:['#120a2a','#3a1a6a','#6a3aba','#e0
 const RAR={ c:{ name:'Gewöhnlich', col:'#9aa3a8' }, r:{ name:'Selten', col:'#4f8fea' }, e:{ name:'Episch', col:'#b45cf0' }, s:{ name:'Spezial', col:'#e8b04a' } };
 const RARITY={ skin:{ wald:'c', wueste:'c', schnee:'c', urban:'c', nacht:'r', feuer:'r', eis:'r', neon:'e', hund:'e', gold:'e' },
   camo:{ wald:'c', wueste:'c', digital:'c', pixel:'c', lava:'r', neon:'r', galaxie:'e', gold:'e', diamant:'e' }, weapon:{ rail:'s' } };
-const DUP={ c:50, r:120, e:300, s:600 };
+const DUP={ c:20, r:50, e:120, s:250 };
 const CRATE_PRICE=400;
 const SIGHTS={ iron:{ name:'Kimme', price:0 }, dot:{ name:'Rotpunkt', price:300 }, holo:{ name:'Holo', price:500 }, scope:{ name:'Zielfernrohr', price:900 } };
 const SIGHT_OK={ pistol:['iron','dot'], revolver:['iron','dot'], shotgun:['iron','dot','holo'], smg:['iron','dot','holo'], rifle:['iron','dot','holo','scope'], lmg:['iron','dot','holo','scope'], sniper:['scope'], dog:['iron'], rail:['iron','dot','holo','scope'] };
@@ -1686,7 +1686,7 @@ function onKill(d){
   addFeed(k,v,WEAPONS[d.w]?WEAPONS[d.w].short:'',d.h);
   if(k===match.me) onMyKill();
   if(v===match.me){ P.streak=0; P.multi=0; P.adrenT=0; }
-  if(k===match.me){ const c=50+(d.h?25:0); profile.credits+=c; profile.kills++; match.earned=(match.earned||0)+c; saveProfile(); popup('+'+c+(d.h?' KOPFSCHUSS':'')); sfx('kill'); flashHit(true); }
+  if(k===match.me){ const c=20+(d.h?10:0); profile.credits+=c; profile.kills++; match.earned=(match.earned||0)+c; saveProfile(); popup('+'+c+(d.h?' KOPFSCHUSS':'')); sfx('kill'); flashHit(true); }
   if(v===match.me) dropDogGun();
   if(v===match.me){ P.killer=k.id; P.ads=0; input.aimM=false; input.fire=false; TIN.aim=false; TIN.fire=false; { const ab=document.querySelector('#touch .aim'); if(ab) ab.classList.remove('on'); } $('reticle').hidden=true; camera.fov=settings.fov; camera.updateProjectionMatrix(); }
   if(v===match.me){ $('dead').hidden=false; $('deadby').textContent='von '+k.name+' ('+(WEAPONS[d.w]?WEAPONS[d.w].short:'')+(d.h?', Kopfschuss':'')+')'; P.ads=0; $('scope').hidden=true; updateHpHud(); sfx('hurt'); }
@@ -1700,13 +1700,13 @@ function onMyKill(){
   if(P.streak===3||P.streak===5||P.streak===8) sfx('streak');
   if(P.streak===3){ P.radarT=15; announce('RADAR','3er-Serie: alle Gegner 15 s auf der Minikarte'); }
   if(P.streak===5){ P.adrenT=20; announce('ADRENALIN','5er-Serie: schneller laufen, schießen und nachladen'); }
-  if(P.streak===8){ P.radarT=30; P.adrenT=30; profile.credits+=100; saveProfile(); announce('KRIEGSHELD','8er-Serie: Radar + Adrenalin 30 s, +100 Credits'); }
+  if(P.streak===8){ P.radarT=30; P.adrenT=30; profile.credits+=40; saveProfile(); announce('KRIEGSHELD','8er-Serie: Radar + Adrenalin 30 s, +40 Credits'); }
 }
 function onEnd(d){
   match.over=true; if(d.roster) for(const r of d.roster){ const e=match.byId[r.id]; if(e){ e.kills=r.kills; e.deaths=r.deaths; } }
   match.score=d.score;
   const myT=match.me.team, res=d.win===-1?'draw':d.win===myT?'win':'lose';
-  const bonus=res==='win'?150:res==='draw'?80:50; profile.credits+=bonus; profile.matches++; if(res==='win') profile.wins++; saveProfile();
+  const bonus=res==='win'?60:res==='draw'?30:20; profile.credits+=bonus; profile.matches++; if(res==='win') profile.wins++; saveProfile();
   match.earned=(match.earned||0)+bonus;
   game.state='end'; if(document.pointerLockElement) document.exitPointerLock();
   speak(res==='win'?'Sieg':res==='lose'?'Niederlage':'Unentschieden');

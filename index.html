@@ -170,6 +170,8 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:14px;border:1px solid rgba
 #health .lbl{font-size:13px;letter-spacing:.14em;color:#ccc}
 #health .bar{width:170px;height:10px;background:rgba(255,255,255,.15)}
 #hpfill{height:100%;width:100%;background:var(--ok);transition:width .15s}
+#health .arbar{height:6px;margin-top:3px}
+#arfill{height:100%;width:0;background:#5aa8ff;transition:width .15s}
 #hpnum{font-family:var(--f-disp);font-size:26px;min-width:52px}
 #ammo{position:absolute;right:max(16px,env(safe-area-inset-right,0px));bottom:max(16px,env(safe-area-inset-bottom,0px));text-align:right;background:rgba(0,0,0,.45);padding:8px 14px;text-shadow:0 1px 2px #000}
 #wname{font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:#ddd}
@@ -287,7 +289,7 @@ body.touch #board{max-height:80vh;overflow:auto}
   <div id="popup"></div>
   <div id="announce"><b></b><small></small></div>
   <div id="perks"></div>
-  <div id="health"><div class="lbl">LEBEN</div><div class="bar"><div id="hpfill"></div></div><div id="hpnum">100</div></div>
+  <div id="health"><div class="lbl">LEBEN</div><div><div class="bar"><div id="hpfill"></div></div><div class="bar arbar" id="arbar" hidden><div id="arfill"></div></div></div><div id="hpnum">100</div></div>
   <div id="ammo"><div id="wname">-</div><div><span id="mag">0</span><span id="reserve">/ 0</span></div><div id="slots"></div></div>
   <div id="hint">B Waffenkammer · Tab Punkte · Esc Pause</div>
   <div id="board" hidden></div>
@@ -513,7 +515,7 @@ const WEAPONS = [
   { id:'smg',     name:'Wespe Maschinenpistole',short:'Wespe',dmg:17, rpm:920, auto:true,  mag:32, reserve:224, reload:1.6, spread:.04,  aim:.013,  pellets:1, range:70,  head:1.5, zoom:1.25, recoil:.012, len:.42, price:800 },
   { id:'revolver',name:'Donner Revolver',     short:'Donner', dmg:58, rpm:150, auto:false, mag:6,  reserve:48,  reload:2.1, spread:.02,  aim:.003,  pellets:1, range:120, head:2.0, zoom:1.2,  recoil:.06,  len:.3,  price:1200 },
   { id:'lmg',     name:'Hammer Maschinengewehr',short:'Hammer',dmg:25, rpm:680, auto:true, mag:75, reserve:300, reload:3.8, spread:.045, aim:.011,  pellets:1, range:150, head:1.5, zoom:1.3,  recoil:.014, len:.8,  price:1800, slow:.88 },
-  { id:'dog',     name:'Häufchen-Hund',       short:'Hund',   dmg:60, rpm:85,  auto:false, mag:6,  reserve:36,  reload:2.4, spread:.01,  aim:.006,  pellets:1, range:60,  head:1,   zoom:1.15, recoil:.05,  len:.4,  special:true, proj:true },
+  { id:'dog',     name:'Häufchen-Hund',       short:'Hund',   dmg:60, rpm:85,  auto:false, mag:8,  reserve:0,   reload:2.4, spread:.01,  aim:.006,  pellets:1, range:60,  head:1,   zoom:1.15, recoil:.05,  len:.4,  special:true, proj:true },
   { id:'rail',    name:'Blitzwerfer',         short:'Blitz',  dmg:85, rpm:55,  auto:false, mag:3,  reserve:21,  reload:2.8, spread:.008, aim:.0015, pellets:1, range:200, head:1.6, zoom:1.6,  recoil:.07,  len:.75, special:true, pierce:true }
 ];
 const WI={}; WEAPONS.forEach((w,i)=>WI[w.id]=i);
@@ -531,7 +533,7 @@ CAMOS.lava={ name:'Lava', price:0, tex:['#2a0a05','#c0392b','#ff7a1a','#5a1a10']
 CAMOS.galaxie={ name:'Galaxie', price:0, tex:['#120a2a','#3a1a6a','#6a3aba','#e0e0ff'], digital:true, m2:0x6a3aba, w:0x120a2a, glow:true };
 const RAR={ c:{ name:'Gewöhnlich', col:'#9aa3a8' }, r:{ name:'Selten', col:'#4f8fea' }, e:{ name:'Episch', col:'#b45cf0' }, s:{ name:'Spezial', col:'#e8b04a' } };
 const RARITY={ skin:{ wald:'c', wueste:'c', schnee:'c', urban:'c', nacht:'r', feuer:'r', eis:'r', neon:'e', hund:'e', gold:'e' },
-  camo:{ wald:'c', wueste:'c', digital:'c', pixel:'c', lava:'r', neon:'r', galaxie:'e', gold:'e', diamant:'e' }, weapon:{ dog:'s', rail:'s' } };
+  camo:{ wald:'c', wueste:'c', digital:'c', pixel:'c', lava:'r', neon:'r', galaxie:'e', gold:'e', diamant:'e' }, weapon:{ rail:'s' } };
 const DUP={ c:100, r:250, e:600, s:1200 };
 const CRATE_PRICE=400;
 const SIGHTS={ iron:{ name:'Kimme', price:0 }, dot:{ name:'Rotpunkt', price:300 }, holo:{ name:'Holo', price:500 }, scope:{ name:'Zielfernrohr', price:900 } };
@@ -550,6 +552,7 @@ const profile = Object.assign({ credits:400, upg:{}, kills:0, wins:0, matches:0,
 profile.loadout=profile.loadout.filter(id=>WI[id]!=null&&profile.owned.includes(id)).slice(0,4);
 for(const id of ['pistol','rifle','shotgun','sniper','smg','revolver','lmg']) if(profile.loadout.length<4&&profile.owned.includes(id)&&!profile.loadout.includes(id)) profile.loadout.push(id);
 profile.skin=validSkin(profile.skin);
+profile.owned=profile.owned.filter(id=>id!=='dog'); profile.loadout=profile.loadout.filter(id=>id!=='dog');
 let LOAD=[]; function refreshLoadout(){ LOAD=profile.loadout.map(id=>WI[id]).filter(i=>i!=null); if(!LOAD.length) LOAD=[1]; }
 refreshLoadout();
 function ownsSight(wid,sg){ return sg==='iron'||(profile.sights[wid]||[]).includes(sg); }
@@ -688,7 +691,7 @@ const MAPS={
   oase:{ name:'Oase', desc:'Wüstendorf mit Marktplatz und Palmen', sky:[0x3f86d6,0xf3dcb0], fog:0xead6ad, fogMul:1.1, ground:{ tex:'sand', col:0xbfa173 }, far:0xcfae74,
     light:{ sky:0xfff0d6, gnd:0x8a6a44, hi:.88, sun:0xfff0d0, si:.9, dir:[20,70,-30] }, sunCol:0xfff6d8, build:oaseLayout, backdrop:'dunes' },
   park:{ name:'Hundepark', desc:'Riesige Map, 11 gegen 11. Hier lebt der Hund!', half:90, teams:11, sky:[0x4f86c6,0xd6e4ee], fog:0xc8d8e2, fogMul:1.3, ground:{ tex:'grass', col:0x7f9a5a }, far:0x5f7a4a,
-    light:{ sky:0xe8f2ff, gnd:0x5a6a3a, hi:.95, sun:0xfff3dc, si:.85, dir:[35,60,-25] }, sunCol:0xfff6d8, build:parkLayout, backdrop:'hills', dog:true, bowl:{ x:5, z:-5 } },
+    light:{ sky:0xe8f2ff, gnd:0x5a6a3a, hi:.95, sun:0xfff3dc, si:.85, dir:[35,60,-25] }, sunCol:0xfff6d8, build:parkLayout, backdrop:'hills', dogGun:true, bowl:{ x:5, z:-5 } },
   polar:{ name:'Polarbasis', desc:'Schneesturm, Bunker, Nadelwald', sky:[0x7d93ad,0xe2e8ee], fog:0xdde4eb, fogMul:.72, ground:{ tex:'snow', col:0xd5dde5 }, far:0xe4eaf0,
     light:{ sky:0xe8f0ff, gnd:0x8a96a6, hi:1.0, sun:0xdde8ff, si:.55, dir:[40,50,30] }, sunCol:0xf4f8ff, build:polarLayout, backdrop:'peaks', snow:true }
 };
@@ -1249,6 +1252,61 @@ function projBoom(p,pt){
     if(any){ sfx('hit'); flashHit(false); } }
 }
 
+// ================= Versorgungskisten + Hund zum Aufheben =================
+function seeded(seed){ let a=seed>>>0; return ()=>{ a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+const SUP=[]; const supMat={ ammo:new T.MeshLambertMaterial({ color:0x4a5a3a }), armor:new T.MeshLambertMaterial({ color:0x2f4f7a }), stripeA:new T.MeshLambertMaterial({ color:0xe8c547, emissive:0x3a2a00 }), stripeR:new T.MeshLambertMaterial({ color:0x8fd0ff, emissive:0x0a3050 }) };
+function buildSupMesh(type,x,z){
+  const g=new T.Group(), B=(w,h,d,m,px,py,pz)=>{ const k=new T.Mesh(new T.BoxGeometry(w,h,d),m); k.position.set(px,py,pz); k.castShadow=true; g.add(k); return k; };
+  B(.9,.5,.62,supMat[type],0,.25,0); B(.92,.08,.64,type==='ammo'?supMat.stripeA:supMat.stripeR,0,.42,0);
+  if(type==='ammo'){ for(let i=0;i<3;i++) B(.08,.22,.08,supMat.stripeA,-.15+i*.15,.62,0); } else B(.4,.5,.08,supMat.stripeR,0,.75,0);
+  const b=new T.Sprite(new T.SpriteMaterial({ map:sparkTex, color:type==='ammo'?0xffd860:0x7fc8ff, transparent:true, depthWrite:false, blending:T.AdditiveBlending, opacity:.6 })); b.position.y=1.3; b.scale.setScalar(1.4); g.add(b); g.userData.beacon=b;
+  g.position.set(x,0,z); g.rotation.y=Math.random()*3; scene.add(g); return g;
+}
+function supClear(){ SUP.splice(0).forEach(s=>scene.remove(s.m)); }
+function supInit(){
+  supClear(); const rnd=seeded([...MAP.id].reduce((h,c)=>h*31+c.charCodeAt(0),7)), pairs=MAP.teams?7:3; let tries=0;
+  while(SUP.length<pairs*2&&tries++<600){ const x=(rnd()*2-1)*(HALF-8), z=-(rnd()*(HALF-18)+5); const pts=[[x,z],[-x,-z]];
+    if(!pts.every(([a,b])=>!grid[cellI(b)*GN+cellI(a)]&&SUP.every(q=>Math.hypot(q.x-a,q.z-b)>9))) continue;
+    const type=(SUP.length/2)%2?'armor':'ammo'; for(const [a,b] of pts) SUP.push({ id:SUP.length, x:a, z:b, type, active:true, t:0, m:buildSupMesh(type,a,b) }); }
+}
+let supReqT=0;
+function supLocal(dt){
+  const me=match.me; if(!me.alive) return; supReqT-=dt; if(supReqT>0) return;
+  for(const s of SUP){ if(!s.active||Math.hypot(me.pos.x-s.x,me.pos.z-s.z)>1.2||me.pos.y>1.2) continue;
+    const need=s.type==='armor'?(me.armor||0)<100:LOAD.some(i=>WEAPONS[i].reserve>0&&P.ws[i].reserve<WEAPONS[i].reserve);
+    if(!need) continue; supReqT=.6; if(game.isHost) hostTake(me,s.id); else netSend({ t:'take', id:s.id }); break; }
+}
+function hostTake(e,id){ const s=SUP[id]; if(!s||!s.active||!e.alive||Math.hypot(e.pos.x-s.x,e.pos.z-s.z)>2.5) return; s.active=false; s.t=25; if(s.type==='armor'){ e.armor=Math.min(100,(e.armor||0)+50); } const m={ t:'sup', id, a:0, by:e.id, ar:Math.round(e.armor||0) }; netSend(m); onSup(m); }
+function onSup(d){ const s=SUP[d.id]; if(!s) return; s.active=!!d.a; s.m.visible=s.active; if(!d.a&&match){ const e=match.byId[d.by]; if(e&&d.ar!=null) e.armor=d.ar;
+    if(e===match.me){ if(s.type==='ammo'){ LOAD.forEach(i=>{ if(WEAPONS[i].reserve>0) P.ws[i].reserve=WEAPONS[i].reserve; }); updateAmmoHud(); popup('+ MUNITION'); } else { popup('+ RÜSTUNG'); updateHpHud(); } sfx('reload2'); sfx('ui',1.5); } } }
+function supHost(dt){ for(const s of SUP) if(!s.active){ s.t-=dt; if(s.t<=0){ const m={ t:'sup', id:s.id, a:1 }; netSend(m); onSup(m); } } }
+function supVisual(){ const k=.45+Math.sin(performance.now()*.004)*.25; for(const s of SUP) if(s.active) s.m.userData.beacon.material.opacity=k; }
+// Häufchen-Hund liegt auf der Karte
+const DGUN={ x:0, z:0, holder:-1, t:0, vis:false, m:null };
+function dgunInit(){ if(DGUN.m){ scene.remove(DGUN.m); DGUN.m=null; } DGUN.holder=-1; DGUN.vis=false; if(!MAP.dogGun) return;
+  const d=buildDogMesh(); d.g.scale.setScalar(.75); d.body.rotation.x=.35; d.body.position.y=-.1; d.legs[2].rotation.x=d.legs[3].rotation.x=-.9; d.tail.rotation.x=-1.2;
+  const b=new T.Sprite(new T.SpriteMaterial({ map:sparkTex, color:0xffd27a, transparent:true, depthWrite:false, blending:T.AdditiveBlending, opacity:.7 })); b.position.y=2.6; b.scale.set(1.4,6,1); d.g.add(b);
+  DGUN.m=d.g; scene.add(d.g); d.g.visible=false; if(game.isHost) dgunPlace(); }
+function dgunPlace(){ const p=randomFreePoint(0); DGUN.x=p.x; DGUN.z=p.z; DGUN.holder=-1; DGUN.vis=true; DGUN.t=0; }
+function dgunHost(dt){
+  if(!DGUN.m) return;
+  if(DGUN.holder>=0){ const h=match.byId[DGUN.holder]; if(!h||!h.alive){ DGUN.holder=-1; DGUN.vis=false; DGUN.t=15; } return; }
+  if(!DGUN.vis){ DGUN.t-=dt; if(DGUN.t<=0){ dgunPlace(); dgunEv({ ev:'spawn' }); } return; }
+  for(const e of match.ents){ if(e.isBot||!e.alive) continue; if(Math.hypot(e.pos.x-DGUN.x,e.pos.z-DGUN.z)<1.4&&e.pos.y<1.2){ DGUN.holder=e.id; DGUN.vis=false; dgunEv({ ev:'take', id:e.id }); break; } }
+}
+function dgunEv(o){ o.t='dgun'; netSend(o); onDgun(o); }
+function onDgun(d){ if(!match) return;
+  if(d.ev==='spawn'&&!game.isHost){ DGUN.vis=true; }
+  if(d.ev==='spawn') addFeedRaw('Der Häufchen-Hund ist irgendwo im Park aufgetaucht!');
+  if(d.ev==='take'){ const e=match.byId[d.id]; addFeedRaw((e?e.name:'Jemand')+' hat den Häufchen-Hund!');
+    if(e===match.me){ const i=WI.dog; if(!LOAD.includes(i)) LOAD.push(i); P.ws[i]={ mag:WEAPONS[i].mag, reserve:0 }; switchWeapon(i); buildSlots(); announce('HÄUFCHEN-HUND','Schieß Häufchen! Leer? Zum Napf in der Mitte.','Häufchen-Hund'); sfx('bark'); } } }
+function dropDogGun(){ const i=WI.dog, k=LOAD.indexOf(i); if(k<0) return; LOAD.splice(k,1); if(P.w===i) switchWeapon(LOAD[0],true); buildSlots(); }
+let bowlT=0;
+function bowlLocal(dt){ const i=WI.dog; if(!MAP.bowl||!LOAD.includes(i)||!match.me.alive) return; const ws=P.ws[i];
+  if(ws.mag<WEAPONS[i].mag&&Math.hypot(match.me.pos.x-MAP.bowl.x,match.me.pos.z-MAP.bowl.z)<1.8){ bowlT+=dt; if(Math.floor(bowlT*2.4)!==Math.floor((bowlT-dt)*2.4)) sfx('chomp');
+    $('cmsg').textContent='Der Hund frisst … '+Math.ceil((1.5-bowlT)*10)/10+' s'; if(bowlT>=1.5){ bowlT=0; ws.mag=WEAPONS[i].mag; updateAmmoHud(); popup('Der Hund ist satt!'); sfx('bark'); } } else bowlT=0; }
+function dgunVisual(dt){ if(!DGUN.m) return; DGUN.m.visible=DGUN.vis; if(DGUN.vis){ DGUN.m.position.set(DGUN.x,.15+Math.sin(performance.now()*.004)*.12,DGUN.z); DGUN.m.rotation.y+=dt*1.5; } }
+
 // ================= Spielzustand =================
 const DIFF={ leicht:{ react:1.15, turn:2.3, err:.28, settle:1.0, inacc:.065, head:.03, dmg:.55 }, mittel:{ react:.8, turn:3.2, err:.18, settle:1.6, inacc:.04, head:.07, dmg:.75 }, schwer:{ react:.48, turn:5, err:.11, settle:2.5, inacc:.018, head:.18, dmg:.95 } };
 const BOTNAMES=['Falke','Wolf','Kobra','Luchs','Viper','Adler','Bär','Fuchs','Hai','Puma','Orca','Rabe','Dachs','Mamba','Jaguar'];
@@ -1260,7 +1318,7 @@ const P={ yaw:0, pitch:0, vel:new V3(), crouchT:0, w:1, ws:[], fireCd:0, reloadT
 function makeEnt(r){
   const e={ id:r.id, name:r.name, team:r.team, isBot:!!r.bot, peer:r.peer||null, w:r.w==null?1:r.w, skin:validSkin(r.skin), stepAcc:0,
     pos:new V3(0,-50,0), tgt:new V3(0,-50,0), tyaw:0, yaw:0, pitch:0, crouch:false, moving:0, hp:100, alive:false, respawnT:0,
-    kills:r.kills||0, deaths:r.deaths||0, protect:0, lastFireT:-9, vel:new V3(), onGround:true, phase:0, deadT:9, ai:null };
+    armor:0, kills:r.kills||0, deaths:r.deaths||0, protect:0, lastFireT:-9, vel:new V3(), onGround:true, phase:0, deadT:9, ai:null };
   e.mesh=buildChar(e); e.mesh.root.visible=false; return e;
 }
 const eyeH = e => e.crouch?1.08:1.56;
@@ -1451,6 +1509,7 @@ function hostOnData(conn,d){
   }
   if(!match) return;
   const e=match.ents.find(x=>x.peer===pid); if(!e) return;
+  if(d.t==='take'){ hostTake(e,d.id|0); return; }
   if(d.t==='doghit'){ if(e.alive) hostDogHit(clamp(+d.dmg||0,0,120),e.id); return; }
   if(d.t==='proj'){ e.lastFireT=match.time; showProj(d); broadcast(d,pid); return; }
   if(d.t==='st'){ if(!e.alive) return; e.tgt.set(+d.p[0]||0,+d.p[1]||0,+d.p[2]||0); e.tyaw=+d.y||0; e.pitch=+d.pi||0; e.w=d.w|0; e.crouch=!!d.c; e.moving=+d.m||0; return; }
@@ -1511,11 +1570,13 @@ function clientOnData(d){
     case 'roster': if(match) applyRoster(d.roster); refreshTiles(); break;
     case 'snap': if(match) applySnap(d); break;
     case 'spawn': if(match) doSpawn(match.byId[d.id],d.x,d.y,d.z,d.yaw,d.q); break;
-    case 'hp': if(match) onHp(d.id,d.hp,d.from); break;
+    case 'hp': if(match) onHp(d.id,d.hp,d.from,d.ar); break;
     case 'kill': if(match) onKill(d); break;
     case 'fx': if(match){ const e=match.byId[d.id]; if(e) e.lastFireT=match.time; showFx(d); } break;
     case 'proj': if(match){ const e=match.byId[d.id]; if(e) e.lastFireT=match.time; showProj(d); } break;
     case 'dog': if(match) onDogEv(d); break;
+    case 'sup': if(match) onSup(d); break;
+    case 'dgun': if(match) onDgun(d); break;
     case 'end': if(match) onEnd(d); break;
     case 'lobbyBack': endMatchCleanup(); showLobby(); renderLobby(); break;
   }
@@ -1543,7 +1604,7 @@ function buildRoster(cfg,humans){
 }
 function startMatch(cfg,roster,extra){
   endMatchCleanup();
-  loadMap(cfg.map); store.set('lastMap',MAP.id); dogInit();
+  loadMap(cfg.map); store.set('lastMap',MAP.id); dogInit(); supInit(); dgunInit();
   match={ cfg, ents:[], byId:{}, me:null, score:(extra&&extra.score)||[0,0], timeLeft:(extra&&extra.timeLeft)||cfg.time, time:0, over:false, snapT:0, sendT:0, intel:[null,null], feed:[] };
   for(const r of roster){ const e=makeEnt(r); match.ents.push(e); match.byId[e.id]=e; if(game.isHost&&e.isBot) initAI(e); }
   match.me = game.mode==='solo' ? match.ents.find(e=>!e.isBot) : match.ents.find(e=>e.peer===NET.myPeer);
@@ -1560,7 +1621,7 @@ function startMatch(cfg,roster,extra){
 }
 function endMatchCleanup(){
   if(match){ match.ents.forEach(removeChar); }
-  dogClear();
+  dogClear(); supClear(); if(DGUN.m){ scene.remove(DGUN.m); DGUN.m=null; }
   match=null; $('hud').hidden=true; $('scope').hidden=true; $('clickplay').hidden=true; $('hurt').style.opacity=0;
   game.state='menu'; game.overlay=null; game.paused=false; vms.forEach(v=>v.visible=false); resetTin(); syncTouchUi();
   if(document.pointerLockElement) document.exitPointerLock();
@@ -1569,7 +1630,7 @@ function resetLoadout(){ P.ws=WEAPONS.map((w,i)=>({ mag:stats[i].mag, reserve:w.
 
 function doSpawn(e,x,y,z,yaw,quiet){
   if(!e) return; e.pos.set(x,y,z); e.tgt.set(x,y,z); e.yaw=e.tyaw=yaw; e.pitch=0; e.vel.set(0,0,0);
-  e.alive=true; e.hp=100; e.protect=quiet?0:2; e.deadT=9; e.respawnT=0; e.crouch=false;
+  e.alive=true; e.hp=100; e.armor=0; e.protect=quiet?0:2; e.deadT=9; e.respawnT=0; e.crouch=false;
   if(e.ai){ e.ai.target=null; e.ai.path=null; e.ai.mag=WEAPONS[e.w].mag; e.ai.reloadT=0; e.ai.lastSeen=null; }
   if(match.me===e){ sfx('spawn'); P.yaw=yaw; P.pitch=0; P.vel.set(0,0,0); resetLoadout(); $('dead').hidden=true; updateHpHud(); }
 }
@@ -1580,6 +1641,7 @@ function hostSpawn(e){
 function hostDamage(tid,aid,dmg,head,w){
   if(!match||match.over) return; const t=match.byId[tid], a=match.byId[aid];
   if(!t||!a||!t.alive||t.team===a.team||t.protect>0) return;
+  if(t.armor>0){ const ab=Math.min(t.armor,dmg); t.armor-=ab; dmg-=ab; }
   t.hp=Math.max(0,t.hp-dmg); t.lastHurtT=match.time;
   if(t.ai){ t.ai.hurtBy=a.id; t.ai.hurtT=match.time; }
   if(t.hp<=0){
@@ -1587,14 +1649,14 @@ function hostDamage(tid,aid,dmg,head,w){
     const k={ t:'kill', k:a.id, v:t.id, w, h:head?1:0, s:match.score };
     netSend(k); onKill(k);
     if(match.score[a.team]>=match.cfg.limit) hostEnd();
-  } else { const m={ t:'hp', id:t.id, hp:t.hp, from:a.id }; netSend(m); onHp(t.id,t.hp,a.id); }
+  } else { const m={ t:'hp', id:t.id, hp:t.hp, ar:Math.round(t.armor||0), from:a.id }; netSend(m); onHp(t.id,t.hp,a.id,m.ar); }
 }
 function hostEnd(){
   if(match.over) return; const s=match.score; const win=s[0]>s[1]?0:s[1]>s[0]?1:-1;
   const m={ t:'end', win, score:s, roster:rosterOf() }; netSend(m); onEnd(m);
 }
-function onHp(id,hp,from){
-  const e=match.byId[id]; if(!e) return; e.hp=hp;
+function onHp(id,hp,from,ar){
+  const e=match.byId[id]; if(!e) return; e.hp=hp; if(ar!=null) e.armor=ar;
   if(e===match.me){ hurtFx(from); updateHpHud(); }
 }
 function onKill(d){
@@ -1605,6 +1667,7 @@ function onKill(d){
   if(k===match.me) onMyKill();
   if(v===match.me){ P.streak=0; P.multi=0; P.adrenT=0; }
   if(k===match.me){ const c=100+(d.h?50:0); profile.credits+=c; profile.kills++; match.earned=(match.earned||0)+c; saveProfile(); popup('+'+c+(d.h?' KOPFSCHUSS':'')); sfx('kill'); flashHit(true); }
+  if(v===match.me) dropDogGun();
   if(v===match.me){ $('dead').hidden=false; $('deadby').textContent='von '+k.name+' ('+(WEAPONS[d.w]?WEAPONS[d.w].short:'')+(d.h?', Kopfschuss':'')+')'; P.ads=0; $('scope').hidden=true; updateHpHud(); sfx('hurt'); }
 }
 function announce(t,sub,say){ if(say!==false) speak(say||t.charAt(0)+t.slice(1).toLowerCase()); const a=$('announce'); a.querySelector('b').textContent=t; a.querySelector('small').textContent=sub||''; a.style.opacity=1; annT=2.4; }
@@ -1638,12 +1701,14 @@ function onEnd(d){
 
 // ---------- Schnappschüsse ----------
 const r2=v=>Math.round(v*100)/100;
-function makeSnap(){ return { t:'snap', e:match.ents.map(e=>[e.id,r2(e.pos.x),r2(e.pos.y),r2(e.pos.z),r2(e.yaw),r2(e.pitch),e.w,e.crouch?1:0,e.alive?1:0,Math.round(e.hp),r2(e.moving)]), s:match.score, tl:Math.round(match.timeLeft), dg:DOG?[r2(DOG.x),r2(DOG.z),r2(DOG.yaw),DOGST.indexOf(DOG.st)]:null }; }
+function makeSnap(){ return { t:'snap', e:match.ents.map(e=>[e.id,r2(e.pos.x),r2(e.pos.y),r2(e.pos.z),r2(e.yaw),r2(e.pitch),e.w,e.crouch?1:0,e.alive?1:0,Math.round(e.hp),r2(e.moving),Math.round(e.armor||0)]), s:match.score, tl:Math.round(match.timeLeft), dg:DOG?[r2(DOG.x),r2(DOG.z),r2(DOG.yaw),DOGST.indexOf(DOG.st)]:null, sp:SUP.map(q=>q.active?1:0).join(''), gd:DGUN.m?[r2(DGUN.x),r2(DGUN.z),DGUN.vis?1:0,DGUN.holder]:null }; }
 function applySnap(d){
   match.score=d.s; match.timeLeft=d.tl;
+  if(typeof d.sp==='string') for(let i=0;i<SUP.length&&i<d.sp.length;i++){ const a=d.sp[i]==='1'; if(SUP[i].active!==a){ SUP[i].active=a; SUP[i].m.visible=a; } }
+  if(d.gd&&DGUN.m){ DGUN.x=d.gd[0]; DGUN.z=d.gd[1]; DGUN.vis=!!d.gd[2]; DGUN.holder=d.gd[3]; }
   if(d.dg&&DOG){ DOG.tx=d.dg[0]; DOG.tz=d.dg[1]; DOG.tyaw=d.dg[2]; const st=DOGST[d.dg[3]]; if(st&&st!=='ko'&&DOG.st!=='ko') DOG.st=st; if(st!=='ko'&&DOG.st==='ko'&&DOG.ko<=0){ DOG.st=st; DOG.m.g.visible=true; } }
   for(const a of d.e){ const e=match.byId[a[0]]; if(!e) continue;
-    if(e===match.me){ e.hp=a[9]; continue; }
+    if(e===match.me){ e.hp=a[9]; e.armor=a[11]||0; continue; }
     e.tgt.set(a[1],a[2],a[3]); e.tyaw=a[4]; e.pitch=a[5]; e.w=a[6]; e.crouch=!!a[7]; e.moving=a[10];
     if(!a[8]&&e.alive){ e.alive=false; } e.hp=a[9];
   }
@@ -1889,7 +1954,7 @@ function updateLocal(dt){
   // Fadenkreuz
   const gap=Math.max(3,Math.tan(currentSpread())*innerHeight/(2*Math.tan(camera.fov*Math.PI/360)));
   crossSet(gap, P.ads>.6&&W.id!=='shotgun', sprint);
-  $('cmsg').textContent=P.reloadT>0?'Nachladen …':(ws.mag===0&&ws.reserve===0?'Keine Munition – Waffe wechseln':(ws.mag<=Math.ceil(st.mag*.25)&&ws.mag>0?'R – Nachladen':''));
+  $('cmsg').textContent=P.reloadT>0?'Nachladen …':(W.id==='dog'&&ws.mag===0?'Der Hund hat Hunger – ab zum Napf!':ws.mag===0&&ws.reserve===0?'Keine Munition – Waffe wechseln':(ws.mag<=Math.ceil(st.mag*.25)&&ws.mag>0?'R – Nachladen':''));
   // An Host senden
   if(game.mode==='mp'&&!game.isHost){ match.sendT-=dt; if(match.sendT<=0){ match.sendT=.05; netSend({ t:'st', p:[r2(me.pos.x),r2(me.pos.y),r2(me.pos.z)], y:r2(P.yaw), pi:r2(P.pitch), w:P.w, c:crouch?1:0, m:r2(hs) }); } }
 }
@@ -1908,7 +1973,7 @@ function crossSet(gap,ads,sprint){
 function buildSlots(){ $('slots').innerHTML=LOAD.map((wi,k)=>'<span class="'+(wi===P.w?'on':'')+'">'+(k+1)+' '+WEAPONS[wi].short+'</span>').join(''); }
 function nextWeapon(dir){ const k=LOAD.indexOf(P.w), n=LOAD.length; switchWeapon(LOAD[((k<0?0:k)+dir+n)%n]); }
 function updateAmmoHud(){ if(!P.ws.length) return; const ws=P.ws[P.w]; $('wname').textContent=WEAPONS[P.w].name; $('mag').textContent=ws.mag; $('mag').className=ws.mag<=Math.ceil(stats[P.w].mag*.25)?'low':''; $('reserve').textContent='/ '+ws.reserve; }
-function updateHpHud(){ const hp=match?match.me.hp:100; $('hpnum').textContent=Math.ceil(hp); const f=$('hpfill'); f.style.width=hp+'%'; f.style.background=hp>60?'var(--ok)':hp>30?'var(--amber)':'var(--red)'; }
+function updateHpHud(){ const hp=match?match.me.hp:100, ar=match?(match.me.armor||0):0; $('arbar').hidden=ar<=0; $('arfill').style.width=ar+'%'; $('hpnum').textContent=Math.ceil(hp)+(ar>0?'+'+Math.ceil(ar):''); const f=$('hpfill'); f.style.width=hp+'%'; f.style.background=hp>60?'var(--ok)':hp>30?'var(--amber)':'var(--red)'; }
 let hitT=0, hurtV=0, popT=0;
 const DV=new V3();
 function dmgNum(p,v,h){ DV.set(p[0],p[1]+.3,p[2]).project(camera); if(DV.z>1) return; const box=$('dmgnums'); if(box.children.length>14) box.firstChild.remove();
@@ -1970,6 +2035,9 @@ function drawMinimap(){
   const me=match.me;
   for(const e of match.ents){ if(!e.alive||e===me) continue; const mate=e.team===me.team; if(!mate&&match.time-e.lastFireT>1.5&&P.radarT<=0) continue;
     const p=mmXY(e.pos.x,e.pos.z); g.fillStyle=mate?'#7fb0ff':'#ff5a4a'; g.beginPath(); g.arc(p[0],p[1],3.2,0,7); g.fill(); }
+  for(const s of SUP){ if(!s.active) continue; const q=mmXY(s.x,s.z); g.fillStyle=s.type==='ammo'?'#e8c547':'#7fc8ff'; g.fillRect(q[0]-2,q[1]-2,4,4); }
+  if(DGUN.m&&DGUN.vis){ const q=mmXY(DGUN.x,DGUN.z); g.fillStyle='#ffb347'; g.beginPath(); g.arc(q[0],q[1],4.5,0,7); g.fill(); g.fillStyle='#5a3a1c'; g.fillRect(q[0]-1.5,q[1]-1.5,3,3); }
+  if(MAP.bowl){ const q=mmXY(MAP.bowl.x,MAP.bowl.z); g.strokeStyle='#e04848'; g.lineWidth=2; g.beginPath(); g.arc(q[0],q[1],3.5,0,7); g.stroke(); }
   const p=mmXY(me.pos.x,me.pos.z), f=mmXY(me.pos.x-Math.sin(P.yaw)*6,me.pos.z-Math.cos(P.yaw)*6), ang=Math.atan2(f[1]-p[1],f[0]-p[0]);
   g.save(); g.translate(p[0],p[1]); g.rotate(ang); g.fillStyle='#e8b04a'; g.beginPath(); g.moveTo(7,0); g.lineTo(-4,4.5); g.lineTo(-2,0); g.lineTo(-4,-4.5); g.closePath(); g.fill(); g.restore();
 }
@@ -2024,8 +2092,9 @@ function frame(now){
     if(!game.paused){
       match.time+=dt;
       if(!game.isHost&&!match.over) match.timeLeft=Math.max(0,match.timeLeft-dt);
-      if(game.isHost&&!match.over){ hostTick(dt); if(DOG) dogHost(dt); }
-      dogVisual(dt); updateProjs(dt); updatePoops(dt);
+      if(game.isHost&&!match.over){ hostTick(dt); if(DOG) dogHost(dt); supHost(dt); dgunHost(dt); }
+      dogVisual(dt); updateProjs(dt); updatePoops(dt); supVisual(); dgunVisual(dt);
+      if(game.state==='playing'){ supLocal(dt); bowlLocal(dt); }
       if(game.state==='playing') updateLocal(dt);
       animateChars(dt); updateFx(dt);
       if(game.state==='playing') updateHud(dt);
@@ -2070,6 +2139,7 @@ document.addEventListener('keydown',e=>{
     if(['Tab','Space','KeyQ','KeyC','KeyE','KeyB','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
     input.keys[e.code]=true;
     if(e.repeat) return;
+    if(e.code==='Digit5'&&LOAD[4]!=null) switchWeapon(LOAD[4]);
     if(e.code>='Digit1'&&e.code<='Digit4'){ const k=+e.code.slice(5)-1; if(LOAD[k]!=null) switchWeapon(LOAD[k]); }
     if(e.code==='KeyE') nextWeapon(1);
     if(e.code==='KeyR') startReload();
@@ -2171,7 +2241,7 @@ function renderArmory(){
     const c=el('div','wcard'+(owned?'':' locked'));
     const h=el('h4',null,w.name); h.appendChild(el('small',null,owned?(slot>=0?'PLATZ '+(slot+1):'IM SCHRANK'):'GESPERRT')); c.appendChild(h);
     c.appendChild(el('div','wstat',Math.round(st.dmg)+(w.pellets>1?'×'+w.pellets:'')+' Schaden · '+Math.round(st.rpm)+' Schuss/min · '+st.mag+' im Magazin · '+st.reload.toFixed(1)+' s laden'+(w.slow?' · schwer':'')));
-    if(!owned&&w.special){ c.appendChild(el('div','wstat','Spezialwaffe: gibt es nur ganz selten aus Kisten.')); c.style.borderColor=RAR.s.col; g.appendChild(c); return; }
+    if(!owned&&w.special){ c.appendChild(el('div','wstat',w.id==='dog'?'Liegt irgendwo im Hundepark. Drüberlaufen = aufheben. Leer? Zum Napf in der Mitte!':'Spezialwaffe: gibt es nur ganz selten aus Kisten.')); c.style.borderColor=RAR.s.col; g.appendChild(c); return; }
     if(!owned){ const b=el('button','big','Freischalten ¢ '+w.price); b.disabled=profile.credits<w.price; b.onclick=()=>{ if(!pay(w.price)) return; profile.owned.push(w.id); if(profile.loadout.length<4) profile.loadout.push(w.id); afterGear(); }; c.appendChild(b); g.appendChild(c); return; }
     const sr=el('div','orow'); sr.appendChild(el('span',null,'Platz'));
     for(let k=0;k<4;k++){ const b=el('button',slot===k?'on':'',String(k+1)); b.title='Auf Platz '+(k+1)+' legen'; b.onclick=()=>equipSlot(w.id,k); sr.appendChild(b); } c.appendChild(sr);
@@ -2234,12 +2304,12 @@ function renderCrates(g){
   const res=el('p','note crate-res','Kiste öffnen und schauen, was drin ist. Doppelte Sachen werden zu Credits.'); wrap.appendChild(res);
   const acts=el('div','acts'); acts.style.justifyContent='flex-start';
   const b1=el('button','btn primary','Kiste öffnen · ¢ '+CRATE_PRICE); b1.disabled=spinning||profile.credits<CRATE_PRICE;
-  const dc=profile.dogCrates||0, b2=el('button','btn','Hundekiste öffnen ('+dc+')'); b2.disabled=spinning||dc<1; b2.title='Bekommst du, wenn du den Hund im Hundepark erwischst. Bessere Chancen!';
+  const dc=profile.dogCrates||0, b2=el('button','btn','Hundekiste öffnen ('+dc+')'); b2.hidden=dc<1; b2.disabled=spinning||dc<1; b2.title='Bekommst du, wenn du den Hund im Hundepark erwischst. Bessere Chancen!';
   acts.append(b1,b2); wrap.appendChild(acts);
   // Vorschau-Streifen
   for(let i=0;i<9;i++) strip.appendChild(crateCard(rollItem(false)));
   const odds=el('div','wstat'); odds.innerHTML='';
-  const o1=el('p','note','Kiste: Gewöhnlich 68 % · Selten 22 % · Episch 7,5 % · Spezialwaffe 2,5 %'), o2=el('p','note','Hundekiste: Gewöhnlich 40 % · Selten 30 % · Episch 18 % · Spezialwaffe 12 %');
+  const o1=el('p','note','Kiste: Gewöhnlich 68 % · Selten 22 % · Episch 7,5 % · Spezialwaffe 2,5 %'), o2=el('p','note',''); o2.hidden=true;
   const list=el('div','orow'); list.style.gap='4px'; for(const it of crateItems()){ const t=el('span',null,it.name); t.style.cssText='width:auto;padding:2px 6px;border:1px solid '+RAR[it.rar].col+';color:'+(owns(it)?'var(--fg)':RAR[it.rar].col)+';font-size:12px'+(owns(it)?';background:rgba(255,255,255,.08)':''); t.title=KIND[it.kind]+(owns(it)?' (hast du)':''); list.appendChild(t); }
   wrap.append(o1,o2,list); g.appendChild(wrap);
   b1.onclick=()=>{ if(spinning||!pay(CRATE_PRICE)) return; $('a-credits').textContent=profile.credits; spin(false,strip,reel,res,[b1,b2]); };
@@ -2433,7 +2503,7 @@ document.addEventListener('click',e=>{ const t=e.target; if(t&&t.closest&&t.clos
 if(!PeerCls){ $('mp-note').textContent=mpBlockedMsg(); $('mp-note').hidden=false; }
 loadMap(store.get('lastMap','depot')); applyQuality(); buildSlots(); applyCtrl(); showMenu(PeerCls?null:mpBlockedMsg());
 requestAnimationFrame(frame);
-window.__sf={ get DOG(){ return DOG; }, poops, projs, get LOAD(){ return LOAD; }, switchWeapon, fire:()=>localFire(), loadMap, MAPS, get MAP(){ return MAP; }, game, get match(){ return match; }, P, NET, profile, startSolo, boxes, findPath, hostDamage, DEV, TIN, get TOUCH(){ return TOUCH; } };
+window.__sf={ SUP, DGUN, hostTake, get DOG(){ return DOG; }, poops, projs, get LOAD(){ return LOAD; }, switchWeapon, fire:()=>localFire(), loadMap, MAPS, get MAP(){ return MAP; }, game, get match(){ return match; }, P, NET, profile, startSolo, boxes, findPath, hostDamage, DEV, TIN, get TOUCH(){ return TOUCH; } };
 })();
 </script>
 <!--SF-BODY-END-->

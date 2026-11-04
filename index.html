@@ -396,7 +396,7 @@ body.touch #board{max-height:80vh;overflow:auto}
     <div class="row"><label for="set-fov">Sichtfeld <span id="v-fov"></span></label><input type="range" id="set-fov" min="65" max="100" step="1"></div>
     <div class="row"><label for="set-vol">Lautstärke <span id="v-vol"></span></label><input type="range" id="set-vol" min="0" max="1" step="0.05"></div>
     <label class="check"><input type="checkbox" id="set-invert"> Maus-Y umkehren</label>
-    <p class="note">„Automatisch“ erkennt Handy oder Chromebook. „Niedrig“ ist für Chromebooks gedacht. Ruckelt es trotzdem, senkt das Spiel die Auflösung von selbst.</p>
+    <p class="note">„Automatisch“ erkennt Handy oder Chromebook. „Niedrig“ ist für schwache Chromebooks, „Ultra“ holt alles raus (Leuchten, Kantenglättung, weiche Schatten, viel Gras). Ruckelt es, senkt das Spiel die Auflösung von selbst. Neue Gras-Menge gilt ab der nächsten Karte.</p>
     <div class="acts"><button id="b-full" class="btn ghost">Vollbild</button><button id="b-set-back" class="btn primary">Fertig</button></div>
   </section>
 
@@ -888,7 +888,7 @@ function buildProps(g){
   }
 }
 function buildGrass(g){
-  const kind=MAP.ground.tex; if(kind!=='grass'&&kind!=='sand') return; const qm={ low:.35, mid:1, high:2.2 }[settings.quality]||1;
+  const kind=MAP.ground.tex; if(kind!=='grass'&&kind!=='sand') return; const qm={ low:.35, mid:1, high:2.2, ultra:3.6 }[settings.quality]||1;
   const n=Math.round((kind==='grass'?HALF*HALF*.4:HALF*HALF*.15)*qm), rnd=seeded(n+7);
   const blade=new T.ConeGeometry(.045,kind==='sand'?.28:.38,3); blade.translate(0,kind==='sand'?.14:.19,0);
   const im=new T.InstancedMesh(blade,new T.MeshLambertMaterial({ flatShading:true }),n), M4=new T.Matrix4(), q=new T.Quaternion(), sc=new V3(), ps=new V3(), c=new T.Color(), up=new V3(0,1,0);
@@ -2101,13 +2101,59 @@ function hostTick(dt){
   if(game.mode==='mp'){ match.snapT-=dt; if(match.snapT<=0){ match.snapT=.05; broadcast(makeSnap()); } }
 }
 // Leistung: Auflösung automatisch anpassen
-const Q={ low:{ scale:.6, fog:85 }, mid:{ scale:.85, fog:110 }, high:{ scale:Math.min(devicePixelRatio||1,1.5), fog:130 } };
+const Q={ low:{ scale:.6, fog:85 }, mid:{ scale:.85, fog:110 }, high:{ scale:Math.min(devicePixelRatio||1,1.5), fog:130 }, ultra:{ scale:Math.min(devicePixelRatio||1,1.5), fog:165 } };
 let resScale=Q[settings.quality].scale, perfAcc=0, perfN=0;
-function qScale(q){ if(DEV.touch) return Math.min(devicePixelRatio||1,{low:1,mid:1.4,high:2}[q]||1.4); return Q[q].scale; }
+function qScale(q){ if(!Q[q]) q='mid'; if(DEV.touch) return Math.min(devicePixelRatio||1,{low:1,mid:1.4,high:2,ultra:2.2}[q]||1.4); return Q[q].scale; }
 function applyFog(){ if(!MAP) return; scene.fog.far=Q[settings.quality].fog*(MAP.fogMul||1); scene.fog.near=scene.fog.far*.28; }
-function applyShadows(){ const on=settings.quality==='high'; if(renderer.shadowMap.enabled!==on){ renderer.shadowMap.enabled=on; scene.traverse(o=>{ if(o.material) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true); }); } shadowMat.opacity=on?0:.28; }
+let shadowKey='';
+function applyShadows(){
+  const q=settings.quality, on=q==='high'||q==='ultra', ultra=q==='ultra', key=on+'/'+ultra;
+  if(key!==shadowKey){ shadowKey=key; renderer.shadowMap.enabled=on; renderer.shadowMap.type=ultra?T.PCFSoftShadowMap:T.PCFShadowMap;
+    const ms=ultra?2048:1024; if(sun.shadow.mapSize.x!==ms){ sun.shadow.mapSize.set(ms,ms); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; } }
+    const sc=sun.shadow.camera, r=ultra?48:38; sc.left=-r; sc.right=r; sc.top=r; sc.bottom=-r; sc.updateProjectionMatrix();
+    scene.traverse(o=>{ if(o.material) (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true); }); }
+  shadowMat.opacity=on?0:.28; if(MAP) hemi.intensity=MAP.light.hi*(on?1.45:1); POST.on=ultra; if(ultra) postResize();
+}
 function applyQuality(){ resScale=qScale(settings.quality); applyFog(); applyShadows(); resize(); }
-function resize(){ const w=innerWidth, h=innerHeight; renderer.setPixelRatio(resScale); renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); vmCam.aspect=w/h; vmCam.updateProjectionMatrix(); }
+function resize(){ const w=innerWidth, h=innerHeight; renderer.setPixelRatio(resScale); renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); vmCam.aspect=w/h; vmCam.updateProjectionMatrix(); if(POST.on) postResize(); }
+// ================= Ultra: Nachbearbeitung (Leuchten, Kantenglättung, Farbkorrektur) =================
+const POST={ on:false, ok:true, rt:null, a:null, b:null, scene:new T.Scene(), cam:new T.OrthographicCamera(-1,1,1,-1,0,1), quad:null, mBright:null, mBlur:null, mComp:null };
+const VS='varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.,1.); }';
+function postInit(){
+  if(POST.quad) return;
+  const gl2=renderer.capabilities.isWebGL2, type=gl2?T.HalfFloatType:T.UnsignedByteType;
+  POST.rt=new T.WebGLRenderTarget(4,4,{ type, samples:gl2?4:0 }); POST.a=new T.WebGLRenderTarget(4,4,{ type }); POST.b=new T.WebGLRenderTarget(4,4,{ type });
+  POST.mBright=new T.ShaderMaterial({ uniforms:{ t:{ value:null }, thr:{ value:.95 } }, vertexShader:VS, depthTest:false, depthWrite:false,
+    fragmentShader:'uniform sampler2D t; uniform float thr; varying vec2 vUv; void main(){ vec3 c=texture2D(t,vUv).rgb; float l=dot(c,vec3(.2126,.7152,.0722)); gl_FragColor=vec4(c*smoothstep(thr,thr+.6,l),1.); }' });
+  POST.mBlur=new T.ShaderMaterial({ uniforms:{ t:{ value:null }, dir:{ value:new T.Vector2() } }, vertexShader:VS, depthTest:false, depthWrite:false,
+    fragmentShader:'uniform sampler2D t; uniform vec2 dir; varying vec2 vUv; void main(){ vec3 c=texture2D(t,vUv).rgb*.227; c+=(texture2D(t,vUv+dir*1.385).rgb+texture2D(t,vUv-dir*1.385).rgb)*.316; c+=(texture2D(t,vUv+dir*3.231).rgb+texture2D(t,vUv-dir*3.231).rgb)*.07; gl_FragColor=vec4(c,1.); }' });
+  POST.mComp=new T.ShaderMaterial({ uniforms:{ t:{ value:null }, bl:{ value:null }, exposure:{ value:1.25 }, str:{ value:.9 }, time:{ value:0 } }, vertexShader:VS, depthTest:false, depthWrite:false,
+    fragmentShader:[
+      'uniform sampler2D t; uniform sampler2D bl; uniform float exposure; uniform float str; uniform float time; varying vec2 vUv;',
+      'vec3 RRT(vec3 v){ vec3 a=v*(v+.0245786)-.000090537; vec3 b=v*(.983729*v+.4329510)+.238081; return a/b; }',
+      'vec3 aces(vec3 c){ const mat3 i=mat3(.59719,.07600,.02840,.35458,.90834,.13383,.04823,.01566,.83777); const mat3 o=mat3(1.60475,-.10208,-.00327,-.53108,1.10813,-.07276,-.07367,-.00605,1.07602); c*=exposure/.6; c=i*c; c=RRT(c); c=o*c; return clamp(c,0.,1.); }',
+      'vec3 srgb(vec3 c){ return mix(c*12.92,1.055*pow(c,vec3(.41666))-.055,step(.0031308,c)); }',
+      'void main(){ vec3 c=texture2D(t,vUv).rgb+texture2D(bl,vUv).rgb*str; c=aces(c);',
+      ' float l=dot(c,vec3(.299,.587,.114)); c=mix(vec3(l),c,1.12); c=(c-.5)*1.02+.5;',
+      ' vec2 d=vUv-.5; c*=1.-dot(d,d)*.45;',
+      ' c=srgb(clamp(c,0.,1.)); c+=(fract(sin(dot(vUv*1000.+time,vec2(12.9898,78.233)))*43758.5453)-.5)/255.;',
+      ' gl_FragColor=vec4(c,1.); }'].join('\n') });
+  POST.mComp.toneMapped=false;
+  POST.quad=new T.Mesh(new T.PlaneGeometry(2,2),POST.mComp); POST.quad.frustumCulled=false; POST.scene.add(POST.quad);
+}
+function postResize(){ postInit(); const v=renderer.getDrawingBufferSize(new T.Vector2()); POST.rt.setSize(v.x,v.y); const w=Math.max(1,v.x>>2), h=Math.max(1,v.y>>2); POST.a.setSize(w,h); POST.b.setSize(w,h); POST.w=w; POST.h=h; }
+function pass(mat,target){ POST.quad.material=mat; renderer.setRenderTarget(target); renderer.render(POST.scene,POST.cam); }
+function renderFrame(showVM){
+  if(!(POST.on&&POST.ok)){ renderer.setRenderTarget(null); renderer.clear(); renderer.render(scene,camera); if(showVM){ renderer.clearDepth(); renderer.render(vmScene,vmCam); } return; }
+  try{
+    renderer.setRenderTarget(POST.rt); renderer.clear(); renderer.render(scene,camera); if(showVM){ renderer.clearDepth(); renderer.render(vmScene,vmCam); }
+    POST.mBright.uniforms.t.value=POST.rt.texture; pass(POST.mBright,POST.a);
+    for(let i=0;i<2;i++){ POST.mBlur.uniforms.t.value=POST.a.texture; POST.mBlur.uniforms.dir.value.set((1+i)/POST.w,0); pass(POST.mBlur,POST.b);
+      POST.mBlur.uniforms.t.value=POST.b.texture; POST.mBlur.uniforms.dir.value.set(0,(1+i)/POST.h); pass(POST.mBlur,POST.a); }
+    const u=POST.mComp.uniforms; u.t.value=POST.rt.texture; u.bl.value=POST.a.texture; u.exposure.value=renderer.toneMappingExposure; u.time.value=(performance.now()%1000);
+    pass(POST.mComp,null);
+  }catch(e){ POST.ok=false; renderer.setRenderTarget(null); }
+}
 addEventListener('resize',resize);
 let last=performance.now(), menuT=0;
 function frame(now){
@@ -2131,8 +2177,7 @@ function frame(now){
     if(camera.fov!==settings.fov){ camera.fov=settings.fov; camera.updateProjectionMatrix(); }
   }
   updateMapFx(dt);
-  renderer.clear(); renderer.render(scene,camera);
-  if(match&&game.state==='playing'&&match.me.alive&&vmRoot.visible){ renderer.clearDepth(); renderer.render(vmScene,vmCam); }
+  renderFrame(!!(match&&game.state==='playing'&&match.me.alive&&vmRoot.visible));
 }
 
 // ================= Eingabe =================
@@ -2415,7 +2460,7 @@ function renderRooms(list){
 }
 // Einstellungen
 let settingsReturn='menu';
-const paintQ=makeSeg($('set-q'),[['low','Niedrig'],['mid','Mittel'],['high','Hoch']],()=>settings.quality,v=>{ settings.quality=v; saveSettings(); applyQuality(); });
+const paintQ=makeSeg($('set-q'),[['low','Niedrig'],['mid','Mittel'],['high','Hoch'],['ultra','Ultra']],()=>settings.quality,v=>{ settings.quality=v; saveSettings(); applyQuality(); });
 const paintCtrl=makeSeg($('set-ctrl'),[['auto','Automatisch'],['touch','Touch'],['keys','Tastatur']],()=>settings.ctrl,v=>{ settings.ctrl=v; saveSettings(); TOUCH=v==='touch'||(v!=='keys'&&DEV.touch); applyCtrl(); });
 function applyCtrl(){ document.body.classList.toggle('touch',TOUCH); $('help-touch').hidden=!TOUCH; $('help-keys').hidden=TOUCH; devLabel(); syncTouchUi(); }
 function devLabel(){ const t='Erkannt: '+DEV.label+' · '+(TOUCH?'Touch-Steuerung':'Tastatur + Maus'); $('m-dev').textContent=t; $('dev-label').textContent=t; }

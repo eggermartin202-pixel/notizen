@@ -396,7 +396,6 @@ body.touch #board{max-height:80vh;overflow:auto}
     <div class="row"><label for="set-fov">Sichtfeld <span id="v-fov"></span></label><input type="range" id="set-fov" min="65" max="100" step="1"></div>
     <div class="row"><label for="set-vol">Lautstärke <span id="v-vol"></span></label><input type="range" id="set-vol" min="0" max="1" step="0.05"></div>
     <label class="check"><input type="checkbox" id="set-invert"> Maus-Y umkehren</label>
-    <label class="check"><input type="checkbox" id="set-voice"> Ansager-Stimme (sagt Doppelkill, Radar …)</label>
     <p class="note">„Automatisch“ erkennt Handy oder Chromebook. „Niedrig“ ist für Chromebooks gedacht. Ruckelt es trotzdem, senkt das Spiel die Auflösung von selbst.</p>
     <div class="acts"><button id="b-full" class="btn ghost">Vollbild</button><button id="b-set-back" class="btn primary">Fertig</button></div>
   </section>
@@ -1136,7 +1135,7 @@ function sfx(kind,vol,pan,extra){
   OUT=null; FM=1;
 }
 function panOf(x,z){ const dx=x-camera.position.x, dz=z-camera.position.z, d=Math.hypot(dx,dz)||1; return (dx*Math.cos(P.yaw)-dz*Math.sin(P.yaw))/d; }
-function speak(t){ if(!settings.voice||!window.speechSynthesis||!t) return; try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang='de-DE'; u.rate=1.05; u.pitch=.7; u.volume=Math.min(1,settings.vol+.2); speechSynthesis.speak(u); }catch(e){} }
+function speak(t){ return; if(!settings.voice||!window.speechSynthesis||!t) return; try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang='de-DE'; u.rate=1.05; u.pitch=.7; u.volume=Math.min(1,settings.vol+.2); speechSynthesis.speak(u); }catch(e){} }
 
 // ================= Der Hund =================
 const dogMat={ fur:new T.MeshLambertMaterial({ color:0xe2c48e }), dark:new T.MeshLambertMaterial({ color:0xb08a5a }), nose:new T.MeshLambertMaterial({ color:0x1a1412 }), poop:new T.MeshLambertMaterial({ color:0x5a3a1c }) };
@@ -2393,13 +2392,13 @@ const paintCtrl=makeSeg($('set-ctrl'),[['auto','Automatisch'],['touch','Touch'],
 function applyCtrl(){ document.body.classList.toggle('touch',TOUCH); $('help-touch').hidden=!TOUCH; $('help-keys').hidden=TOUCH; devLabel(); syncTouchUi(); }
 function devLabel(){ const t='Erkannt: '+DEV.label+' · '+(TOUCH?'Touch-Steuerung':'Tastatur + Maus'); $('m-dev').textContent=t; $('dev-label').textContent=t; }
 window.__devLabel=devLabel;
-function openSettings(from){ settingsReturn=from; paintQ(); paintCtrl(); $('set-sens').value=settings.sens; $('set-fov').value=settings.fov; $('set-vol').value=settings.vol; $('set-invert').checked=settings.invert; $('set-voice').checked=settings.voice; paintVals(); showScreen('scr-settings'); }
+function openSettings(from){ settingsReturn=from; paintQ(); paintCtrl(); $('set-sens').value=settings.sens; $('set-fov').value=settings.fov; $('set-vol').value=settings.vol; $('set-invert').checked=settings.invert; paintVals(); showScreen('scr-settings'); }
 function paintVals(){ $('v-sens').textContent=(+settings.sens).toFixed(2); $('v-fov').textContent=settings.fov+'°'; $('v-vol').textContent=Math.round(settings.vol*100)+' %'; }
 $('set-sens').oninput=e=>{ settings.sens=+e.target.value; paintVals(); saveSettings(); };
 $('set-fov').oninput=e=>{ settings.fov=+e.target.value; paintVals(); saveSettings(); };
 $('set-vol').oninput=e=>{ settings.vol=+e.target.value; paintVals(); saveSettings(); if(master) master.gain.value=settings.vol; };
 $('set-invert').onchange=e=>{ settings.invert=e.target.checked; saveSettings(); };
-$('set-voice').onchange=e=>{ settings.voice=e.target.checked; saveSettings(); if(settings.voice){ initAudio(); speak('Ansager an'); } };
+
 $('b-full').onclick=()=>{ try{ if(document.fullscreenElement) document.exitFullscreen(); else { const p=document.documentElement.requestFullscreen(); if(p&&p.catch) p.catch(()=>{}); } }catch(e){} };
 
 // ================= Touch-Steuerung =================
@@ -2493,6 +2492,7 @@ $('b-again').onclick=()=>{
 
 document.addEventListener('click',e=>{ const t=e.target; if(t&&t.closest&&t.closest('.btn,.seg button,.urow button,.orow button,.wcard .big')) sfx('ui'); });
 // Tarnseite: 3x schnell auf "404" klicken oder "notiz" tippen
+try{ if(window.speechSynthesis) speechSynthesis.cancel(); }catch(e){}
 (function(){
   const cover=$('cover'); let clicks=[], typed='';
   const open=()=>{ cover.hidden=true; initAudio(); };

@@ -206,6 +206,7 @@ kbd{font-family:var(--f-ui);font-weight:700;font-size:14px;border:1px solid rgba
 #dead{position:absolute;left:50%;top:34%;transform:translateX(-50%);text-align:center;text-shadow:0 2px 4px #000}
 #dead .big{font-family:var(--f-disp);font-size:46px;color:var(--red)}
 #deadby{font-size:20px}#deadt{font-size:17px;color:#ccc;margin-top:4px}
+#bench-toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;background:var(--panel);border:1px solid var(--line);padding:9px 16px;font-size:16px;font-weight:600;max-width:92vw;text-align:center;transition:opacity .4s}
 #clickplay{position:fixed;inset:0;z-index:15;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35);cursor:pointer}
 #clickplay div{font-family:var(--f-disp);font-size:30px;padding:16px 26px;background:var(--panel);border:1px solid var(--amber);color:var(--amber);text-align:center}
 #clickplay small{display:block;font-family:var(--f-ui);font-size:15px;color:var(--muted);margin-top:4px}
@@ -314,6 +315,7 @@ body.touch #board{max-height:80vh;overflow:auto}
   <div class="tb sq board" data-act="board">Punkte</div>
 </div>
 <div id="rotate"><div>Dreh dein Handy quer<small>Das Spiel läuft im Querformat.</small></div></div>
+<div id="bench-toast" hidden></div>
 <div id="clickplay" hidden><div>Klicken zum Spielen<small>Maus wird gefangen · Esc gibt sie frei</small></div></div>
 
 <main id="ui">
@@ -405,7 +407,8 @@ body.touch #board{max-height:80vh;overflow:auto}
     <div class="row"><label for="set-vol">Lautstärke <span id="v-vol"></span></label><input type="range" id="set-vol" min="0" max="1" step="0.05"></div>
     <label class="check"><input type="checkbox" id="set-invert"> Maus-Y umkehren</label>
     <p class="note">„Automatisch“ erkennt Handy oder Chromebook. „Niedrig“ ist für schwache Chromebooks, „Ultra“ holt alles raus (Leuchten, Kantenglättung, weiche Schatten, viel Gras). Ruckelt es, senkt das Spiel die Auflösung von selbst. Neue Gras-Menge gilt ab der nächsten Karte.</p>
-    <div class="acts"><button id="b-full" class="btn ghost">Vollbild</button><button id="b-set-back" class="btn primary">Fertig</button></div>
+    <p class="note" id="bench-info"></p>
+    <div class="acts"><button id="b-bench" class="btn ghost">Leistung neu messen</button><button id="b-full" class="btn ghost">Vollbild</button><button id="b-set-back" class="btn primary">Fertig</button></div>
   </section>
 
   <section id="scr-help" class="screen panel" hidden>
@@ -2372,10 +2375,39 @@ function renderFrame(showVM){
 addEventListener('resize',resize);
 let last=performance.now(), menuT=0;
 let ptSave=0;
+// ================= Leistungstest (einmal pro Gerät) =================
+const BENCH={ running:false, steps:[], i:0, t:0, frames:0, warm:0, res:{}, prevQ:null, prevMap:null, toastT:0 };
+const QN={ low:'Niedrig', mid:'Mittel', high:'Hoch', ultra:'Ultra' };
+function benchToast(t,sec){ const el=$('bench-toast'); el.textContent=t; el.hidden=false; el.style.opacity=1; BENCH.toastT=sec||0; }
+function benchStart(){
+  if(BENCH.running||game.state!=='menu'||document.hidden) return;
+  BENCH.running=true; BENCH.prevQ=settings.quality; BENCH.prevMap=MAP?MAP.id:'depot'; BENCH.res={}; BENCH.steps=['ultra','mid']; BENCH.i=0;
+  loadMap('park'); benchToast('Leistungstest läuft … (ca. 7 Sekunden)'); benchStep();
+}
+function benchStep(){ const q=BENCH.steps[BENCH.i]; settings.quality=q; resScale=qScale(q); applyFog(); applyShadows(); resize(); BENCH.t=0; BENCH.frames=0; BENCH.warm=1.2; BENCH.skip=20; }
+function benchStop(done){
+  BENCH.running=false; if(game.state==='menu') loadMap(BENCH.prevMap||'depot');
+  if(!done){ settings.quality=BENCH.prevQ; applyQuality(); $('bench-toast').hidden=true; return; }
+  const fu=BENCH.res.ultra||0, fm=BENCH.res.mid||0;
+  const pick=fu>=50?'ultra':fu>=36?'high':fm>=42?'mid':'low';
+  settings.quality=pick; saveSettings(); store.set('bench',{ v:1, q:pick, fu:Math.round(fu), fm:Math.round(fm), t:Date.now() }); applyQuality();
+  benchToast('Leistungstest fertig: Grafik „'+QN[pick]+'“ eingestellt (Ultra '+Math.round(fu)+' Bilder/s, Mittel '+Math.round(fm)+' Bilder/s)',6);
+  benchInfo();
+}
+function benchTick(raw){
+  if(game.state!=='menu'||document.hidden){ benchStop(false); return; }
+  if(BENCH.warm>0||BENCH.skip>0){ BENCH.warm-=raw; BENCH.skip--; return; }
+  BENCH.t+=raw; BENCH.frames++;
+  if(BENCH.t>=2){ BENCH.res[BENCH.steps[BENCH.i]]=BENCH.frames/BENCH.t; BENCH.i++; if(BENCH.i<BENCH.steps.length) benchStep(); else benchStop(true); }
+}
+function benchInfo(){ const b=store.get('bench',null); $('bench-info').textContent=b?'Letzter Leistungstest: Ultra '+b.fu+' Bilder/s, Mittel '+b.fm+' Bilder/s → empfohlen „'+QN[b.q]+'“.':'Noch kein Leistungstest auf diesem Gerät.'; }
 function frame(now){
   requestAnimationFrame(frame);
-  let dt=(now-last)/1000; last=now; if(dt>.05) dt=.05; if(dt<=0) return;
+  const raw=(now-last)/1000; let dt=raw; last=now; if(dt>.05) dt=.05; if(dt<=0) return;
+  if(BENCH.running) benchTick(raw);
+  if(BENCH.toastT>0){ BENCH.toastT-=raw; if(BENCH.toastT<=0) $('bench-toast').hidden=true; }
   perfAcc+=dt; perfN++;
+  if(BENCH.running){ perfAcc=0; perfN=0; }
   if(perfAcc>2.5){ const fps=perfN/perfAcc; const minS=DEV.touch?.8:.5; if(fps<42&&resScale>minS){ resScale=Math.max(minS,resScale-.1); resize(); } perfAcc=0; perfN=0; }
   if(match&&(game.state==='playing'||game.state==='end')){
     if(!game.paused){
@@ -2720,13 +2752,14 @@ const paintCtrl=makeSeg($('set-ctrl'),[['auto','Automatisch'],['touch','Touch'],
 function applyCtrl(){ document.body.classList.toggle('touch',TOUCH); $('help-touch').hidden=!TOUCH; $('help-keys').hidden=TOUCH; devLabel(); syncTouchUi(); }
 function devLabel(){ const t='Erkannt: '+DEV.label+' · '+(TOUCH?'Touch-Steuerung':'Tastatur + Maus'); $('m-dev').textContent=t; $('dev-label').textContent=t; }
 window.__devLabel=devLabel;
-function openSettings(from){ settingsReturn=from; paintQ(); paintCtrl(); $('set-sens').value=settings.sens; $('set-fov').value=settings.fov; $('set-vol').value=settings.vol; $('set-invert').checked=settings.invert; paintVals(); showScreen('scr-settings'); }
+function openSettings(from){ settingsReturn=from; benchInfo(); $('b-bench').hidden=from!=='menu'; paintQ(); paintCtrl(); $('set-sens').value=settings.sens; $('set-fov').value=settings.fov; $('set-vol').value=settings.vol; $('set-invert').checked=settings.invert; paintVals(); showScreen('scr-settings'); }
 function paintVals(){ $('v-sens').textContent=(+settings.sens).toFixed(2); $('v-fov').textContent=settings.fov+'°'; $('v-vol').textContent=Math.round(settings.vol*100)+' %'; }
 $('set-sens').oninput=e=>{ settings.sens=+e.target.value; paintVals(); saveSettings(); };
 $('set-fov').oninput=e=>{ settings.fov=+e.target.value; paintVals(); saveSettings(); };
 $('set-vol').oninput=e=>{ settings.vol=+e.target.value; paintVals(); saveSettings(); if(master) master.gain.value=settings.vol; };
 $('set-invert').onchange=e=>{ settings.invert=e.target.checked; saveSettings(); };
 
+$('b-bench').onclick=()=>{ showMenu(); setTimeout(benchStart,300); };
 $('b-full').onclick=()=>{ try{ if(document.fullscreenElement) document.exitFullscreen(); else { const p=document.documentElement.requestFullscreen(); if(p&&p.catch) p.catch(()=>{}); } }catch(e){} };
 
 // ================= Touch-Steuerung =================
@@ -2824,7 +2857,7 @@ document.addEventListener('click',e=>{ const t=e.target; if(t&&t.closest&&t.clos
 try{ if(window.speechSynthesis) speechSynthesis.cancel(); }catch(e){}
 (function(){
   const cover=$('cover'); let clicks=[], typed='';
-  const open=()=>{ cover.hidden=true; initAudio(); };
+  const open=()=>{ cover.hidden=true; initAudio(); if(!store.get('bench',null)) setTimeout(benchStart,1500); };
   $('c404').addEventListener('click',()=>{ const n=performance.now(); clicks=clicks.filter(t=>n-t<1500); clicks.push(n); if(clicks.length>=3) open(); });
   document.addEventListener('keydown',e=>{ if(cover.hidden) return; typed=(typed+(e.key||'')).slice(-5).toLowerCase(); if(typed==='notiz') open(); });
 })();
@@ -2833,7 +2866,7 @@ if(!PeerCls){ $('mp-note').textContent=mpBlockedMsg(); $('mp-note').hidden=false
 setTimeout(()=>{ try{ regStart(); }catch(e){} },2500);
 loadMap(store.get('lastMap','depot')); applyQuality(); buildSlots(); applyCtrl(); showMenu(PeerCls?null:mpBlockedMsg());
 requestAnimationFrame(frame);
-window.__sf={ mortar, LB, lbMerge, renderLB, input, camFov:()=>camera.fov, camY:()=>camera.position.y, SUP, DGUN, hostTake, get DOG(){ return DOG; }, poops, projs, get LOAD(){ return LOAD; }, switchWeapon, fire:()=>localFire(), loadMap, MAPS, get MAP(){ return MAP; }, game, get match(){ return match; }, P, NET, profile, startSolo, boxes, findPath, hostDamage, DEV, TIN, get TOUCH(){ return TOUCH; } };
+window.__sf={ BENCH, benchStart, mortar, LB, lbMerge, renderLB, input, camFov:()=>camera.fov, camY:()=>camera.position.y, SUP, DGUN, hostTake, get DOG(){ return DOG; }, poops, projs, get LOAD(){ return LOAD; }, switchWeapon, fire:()=>localFire(), loadMap, MAPS, get MAP(){ return MAP; }, game, get match(){ return match; }, P, NET, profile, startSolo, boxes, findPath, hostDamage, DEV, TIN, get TOUCH(){ return TOUCH; } };
 })();
 </script>
 <!--SF-BODY-END-->

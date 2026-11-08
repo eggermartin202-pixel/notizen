@@ -125,6 +125,7 @@ canvas{display:block}
 #psoBtns button{pointer-events:auto;padding:8px 16px;border-radius:20px;border:1px solid rgba(255,255,255,.3);background:rgba(8,14,30,.7);color:#fff;font-weight:800;font-size:14px}
 #trainBar{position:absolute;left:max(8px,env(safe-area-inset-left));top:calc(max(8px,env(safe-area-inset-top)) + 46px);display:flex;flex-wrap:wrap;gap:5px;max-width:52%;pointer-events:auto;z-index:5}
 #trainBar button{padding:6px 9px;border-radius:9px;border:1px solid rgba(255,255,255,.3);background:linear-gradient(180deg,rgba(40,56,96,.85),rgba(8,14,30,.85));color:#fff;font-weight:800;font-size:12px}
+#trainBar.guest button:not(#tBall):not(#tTargets){display:none}
 #trainBar button.on{background:linear-gradient(180deg,#ffe27a,#ffb320);color:#241400}
 #match.training #score .tm,#match.training #clock,#match.training #bJubel{display:none}
 #match.training #sc{font-size:15px;letter-spacing:.5px}
@@ -201,7 +202,7 @@ canvas{display:block}
       <button class="big" id="penStart">Anpfiff!</button>
       <div class="row2"><button class="sec" id="menuJubel">🎉 Torjubel</button><button class="sec" id="menuKit">👕 Trikots &amp; Skins</button><button class="sec" id="menuTricks">🌈 Tricks</button></div>
       <button class="sec" id="menuTraining">⚽ Trainingsplatz (Ball-Simulator)</button>
-      <button class="sec" id="menuOnline">🌐 Online gegen einen Freund</button>
+      <button class="sec" id="menuOnline">🌐 Online mit einem Freund (zusammen oder gegeneinander)</button>
       <button class="sec" id="penSkip2">⏭ Elfmeter überspringen – direkt zum Spiel</button>
       <div class="stats" id="penStats"></div>
     </div></div>
@@ -298,8 +299,10 @@ canvas{display:block}
   </div>
 </div>
 <div id="mpMenu" class="overlay hidden"><div class="card">
-  <h2>🌐 Online gegen einen Freund</h2>
-  <p>Du spielst Barça (Neymar Jr.), dein Freund spielt Real (Nr. 9). Beide Geräte brauchen Internet. Am besten die Seite im normalen Browser öffnen (z. B. über GitHub Pages), nicht in einer App-Vorschau.</p>
+  <h2>🌐 Online mit einem Freund</h2>
+  <p>Wer den Raum erstellt, wählt Modus und Team. Du bist Neymar Jr., dein Freund Nr. 9. Am besten im normalen Browser öffnen.</p>
+  <div class="mpRow"><div style="flex:1"><div class="lbl">MODUS</div><div class="seg" id="mpModeBtns"><button data-m="match">⚽ 11 gg. 11</button><button data-m="train">🏃 Training</button></div></div>
+  <div style="flex:1"><div class="lbl">TEAM</div><div class="seg" id="mpTeamBtns"><button data-t="coop">🤝 Zusammen</button><button data-t="vs">⚔️ Gegeneinander</button></div></div></div>
   <div class="mpRow">
     <div class="mpBox"><div class="lbl">SPIEL ERSTELLEN</div><button class="big" id="mpHost">Raum erstellen</button><div class="mpCode" id="mpCode">–</div></div>
     <div class="mpBox"><div class="lbl">BEITRETEN</div><input id="mpInput" maxlength="8" placeholder="CODE" autocomplete="off" autocapitalize="characters"><button class="sec" id="mpJoin">Beitreten</button></div>
@@ -1100,20 +1103,22 @@ function TRS(x, y, z, rx, ry, rz, sx, sy, sz) {
   return m;
 }
 // Mehrere Geometrien mit Vertexfarben zu einer verschmelzen (1 Draw-Call)
-function mergeColored(parts) {
-  const P = [], N = [], C = [];
+function mergeColored(parts, withUV) {
+  const P = [], N = [], C = [], U = [];
   for (const p of parts) {
     const g = p.geo.index ? p.geo.toNonIndexed() : p.geo.clone();
     if (p.m) g.applyMatrix4(p.m);
     const pos = g.attributes.position.array, nor = g.attributes.normal.array, c = LC(p.color);
     for (let i = 0; i < pos.length; i++) { P.push(pos[i]); N.push(nor[i]); }
     for (let i = 0; i < pos.length / 3; i++) C.push(c.r, c.g, c.b);
+    if (withUV) { const uv = g.attributes.uv; for (let i = 0; i < pos.length / 3; i++) U.push(uv ? uv.getX(i) * (p.uvs || 1) : 0, uv ? uv.getY(i) * (p.uvt || 1) : 0); }
     g.dispose();
   }
   const out = new THREE.BufferGeometry();
   out.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
   out.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
   out.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+  if (withUV) out.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
   return out;
 }
 
@@ -1304,11 +1309,184 @@ function initFigureShared() {
     hairCap: new THREE.SphereGeometry(0.117, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.56),
     hairBuzz: new THREE.SphereGeometry(0.111, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.5),
     afro: new THREE.SphereGeometry(0.15, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.62),
-    bun: S(0.045, 8, 6), longBack: new THREE.BoxGeometry(0.2, 0.17, 0.07), mohawk: new THREE.BoxGeometry(0.035, 0.06, 0.2),
+    bun: S(0.045, 10, 8), longBack: (() => { const q = new THREE.SphereGeometry(1, 16, 12); q.scale(0.1, 0.105, 0.055); return q; })(), mohawk: (() => { const q = new THREE.SphereGeometry(1, 12, 10); q.scale(0.02, 0.034, 0.112); return q; })(),
     beard: S(0.088, 14, 10), cheek: S(0.035, 8, 6), chin: S(0.03, 8, 6), clump: S(0.032, 6, 5), stud: new THREE.CylinderGeometry(0.008, 0.008, 0.015, 5),
     fingers: new THREE.BoxGeometry(0.052, 0.05, 0.022), finger: (() => { const g = new THREE.BoxGeometry(0.0105, 0.046, 0.013); g.translate(0, -0.023, 0); return g; })(), ankleB: S(0.042, 8, 6), sideStripe: new THREE.BoxGeometry(0.012, 0.2, 0.05), headband: new THREE.TorusGeometry(0.106, 0.013, 6, 24)
   };
   FIG.texCache = {};
+  buildHeadGeos();
+}
+/* ---------- Gesicht: modellierter Kopf + gemalte Gesichtsschicht ---------- */
+// Kopf-Koordinaten: y nach oben (Hals bei ~0), z nach vorne (Gesicht)
+const FACE_BOX = { x0: -0.075, w: 0.15, y0: -0.005, h: 0.18 };
+function buildHeadGeos() {
+  const g = new THREE.SphereGeometry(1, 44, 34), pos = g.attributes.position;
+  const gs = (X, Y, cx, cy, sx, sy) => Math.exp(-((X - cx) * (X - cx) / (sx * sx) + (Y - cy) * (Y - cy) / (sy * sy)));
+  for (let i = 0; i < pos.count; i++) {
+    const ux = pos.getX(i), uy = pos.getY(i), uz = pos.getZ(i);
+    let X = ux * 0.097, Y = 0.109 + uy * 0.113, Z = -0.005 + uz * 0.104;
+    const lo = Math.min(1, Math.max(0, (0.1 - Y) / 0.11)), fr = Math.max(0, uz);
+    X *= 1 - 0.26 * lo * lo;                       // Kiefer verjüngt sich zum Kinn
+    Z += fr * lo * 0.028;                          // Unterkiefer/Kinn nach vorne
+    if (uz < -0.2) Z -= 0.006 * (1 - Math.abs(uy)); // Hinterkopf etwas flacher
+    if (fr > 0) {
+      const f2 = fr * fr;
+      let d = 0.01 * (1 - Math.min(1, Math.abs(X) / 0.08)) * (1 - lo);   // Gesicht vorne flacher/breiter
+      d += 0.006 * (gs(X, Y, -0.034, 0.139, 0.03, 0.011) + gs(X, Y, 0.034, 0.139, 0.03, 0.011));   // Brauenbogen
+      d -= 0.008 * (gs(X, Y, -0.034, 0.114, 0.017, 0.011) + gs(X, Y, 0.034, 0.114, 0.017, 0.011)); // Augenhöhlen
+      d += 0.007 * (gs(X, Y, -0.054, 0.088, 0.02, 0.018) + gs(X, Y, 0.054, 0.088, 0.02, 0.018));   // Wangenknochen
+      d += 0.006 * gs(X, Y, 0, 0.05, 0.028, 0.014);  // Mundpartie
+      d += 0.004 * gs(X, Y, 0, 0.047, 0.016, 0.006); // Lippen
+      d -= 0.004 * gs(X, Y, 0, 0.031, 0.02, 0.006);  // Kinnfalte
+      d += 0.007 * gs(X, Y, 0, 0.014, 0.022, 0.013); // Kinn
+      Z += d * f2;
+    }
+    pos.setXYZ(i, X, Y, Z);
+  }
+  g.computeVertexNormals();
+  // Gesichtsschicht: vordere Dreiecke, minimal nach außen versetzt, planare UVs
+  const ng = g.toNonIndexed(), P = ng.attributes.position, Nn = ng.attributes.normal;
+  const outP = [], outN = [], outU = [];
+  for (let t = 0; t < P.count; t += 3) {
+    let ok = true;
+    for (let k = 0; k < 3; k++) { const z = P.getZ(t + k), y = P.getY(t + k), x = P.getX(t + k); if (z < 0.015 || y < FACE_BOX.y0 || y > FACE_BOX.y0 + FACE_BOX.h || Math.abs(x) > 0.074) ok = false; }
+    if (!ok) continue;
+    for (let k = 0; k < 3; k++) {
+      const i = t + k, nx = Nn.getX(i), ny = Nn.getY(i), nz = Nn.getZ(i);
+      const x = P.getX(i) + nx * 0.0012, y = P.getY(i) + ny * 0.0012, z = P.getZ(i) + nz * 0.0012;
+      outP.push(x, y, z); outN.push(nx, ny, nz); outU.push((x - FACE_BOX.x0) / FACE_BOX.w, (y - FACE_BOX.y0) / FACE_BOX.h);
+    }
+  }
+  const dg = new THREE.BufferGeometry();
+  dg.setAttribute('position', new THREE.Float32BufferAttribute(outP, 3));
+  dg.setAttribute('normal', new THREE.Float32BufferAttribute(outN, 3));
+  dg.setAttribute('uv', new THREE.Float32BufferAttribute(outU, 2));
+  ng.dispose();
+  FIG.g.headS = g; FIG.g.faceDecal = dg;
+  const S = (r, w, h) => new THREE.SphereGeometry(r, w || 10, h || 8);
+  FIG.g.noseBridge = (() => { const c = new THREE.CylinderGeometry(0.0068, 0.0105, 0.046, 10); c.scale(1, 1, 0.85); return c; })();
+  FIG.g.noseTip = S(0.0102, 12, 10); FIG.g.nostril = S(0.0078, 10, 8);
+  FIG.g.earS = (() => { const e = new THREE.SphereGeometry(0.03, 10, 8); e.scale(0.42, 1, 0.75); return e; })();
+  FIG.g.earIn = S(0.016, 8, 6);
+  FIG.faceTex = {};
+  const hc = document.createElement('canvas'); hc.width = 256; hc.height = 256; const h = hc.getContext('2d');
+  h.fillStyle = '#9a9a9a'; h.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 2600; i++) {   // Strähnen laufen von oben (v=1) nach unten
+    const x = Math.random() * 256, y = Math.random() * 256, l = 20 + Math.random() * 60, v = 90 + Math.random() * 165 | 0;
+    h.strokeStyle = `rgba(${v},${v},${v},${0.25 + Math.random() * 0.35})`; h.lineWidth = 0.6 + Math.random() * 1.4;
+    h.beginPath(); h.moveTo(x, y); h.quadraticCurveTo(x + (Math.random() - 0.5) * 8, y + l / 2, x + (Math.random() - 0.5) * 6, y + l); h.stroke();
+    if (y + l > 256) { h.beginPath(); h.moveTo(x, y - 256); h.lineTo(x, y + l - 256); h.stroke(); }
+  }
+  const ht = canvasTex(hc); ht.wrapS = ht.wrapT = THREE.RepeatWrapping; ht.anisotropy = 4;
+  FIG.hairMat = new THREE.MeshStandardMaterial({ vertexColors: true, map: ht, roughness: 0.5, metalness: 0.04 });
+}
+function shadeHex(hex, f, add) { const c = new THREE.Color(hex); c.r = Math.min(1, c.r * f[0] + (add || 0)); c.g = Math.min(1, c.g * f[1] + (add || 0)); c.b = Math.min(1, c.b * f[2] + (add || 0)); return '#' + c.getHexString(); }
+function rgba(hex, a) { const c = new THREE.Color(hex); return `rgba(${(c.r * 255) | 0},${(c.g * 255) | 0},${(c.b * 255) | 0},${a})`; }
+// o = { skin, brow, eye, beard: 0 keiner | 1 Stoppeln | 2 Vollbart | 3 Neymar-Stil }
+function faceTexture(o) {
+  const key = [o.skin, o.brow, o.eye, o.beard].join('|');
+  if (FIG.faceTex[key]) return FIG.faceTex[key];
+  const W = 512, c = document.createElement('canvas'); c.width = c.height = W; const g = c.getContext('2d');
+  const B = FACE_BOX, px = x => (x - B.x0) / B.w * W, py = y => (1 - (y - B.y0) / B.h) * W, sc = W / B.w;
+  const skinD = shadeHex(o.skin, [0.62, 0.5, 0.46]), lip = shadeHex(o.skin, [0.86, 0.6, 0.58]), lipD = shadeHex(o.skin, [0.55, 0.32, 0.32]);
+  const blob = (x, y, r, col, a, sy) => { g.save(); g.translate(px(x), py(y)); g.scale(1, sy || 1); const gr = g.createRadialGradient(0, 0, 0, 0, 0, r * sc); gr.addColorStop(0, rgba(col, a)); gr.addColorStop(1, rgba(col, 0)); g.fillStyle = gr; g.beginPath(); g.arc(0, 0, r * sc, 0, Math.PI * 2); g.fill(); g.restore(); };
+  // Konturen: Schläfen, Wangen, unter dem Wangenknochen
+  for (const s of [-1, 1]) {
+    blob(s * 0.058, 0.112, 0.022, skinD, 0.28, 1.5);
+    blob(s * 0.05, 0.062, 0.022, skinD, 0.18, 1.2);
+    blob(s * 0.046, 0.083, 0.02, '#d0584f', 0.10);
+  }
+  // Augenhöhlen-Schatten
+  for (const s of [-1, 1]) blob(s * 0.034, 0.118, 0.026, skinD, 0.42, 0.62);
+  // Nasenschatten (Seiten + unter der Nase) und Philtrum
+  for (const s of [-1, 1]) blob(s * 0.014, 0.096, 0.012, skinD, 0.3, 2.2);
+  blob(0, 0.068, 0.017, skinD, 0.5, 0.45);
+  blob(0, 0.058, 0.007, skinD, 0.22, 1.4);
+  // Bart
+  const hairDots = (inside, n, a, len) => {
+    g.strokeStyle = rgba(o.brow, a); g.lineWidth = 1.3;
+    for (let i = 0; i < n; i++) {
+      const x = B.x0 + Math.random() * B.w, y = B.y0 + Math.random() * 0.11;
+      if (!inside(x, y)) continue;
+      const X = px(x), Y = py(y), an = Math.PI / 2 + (Math.random() - 0.5) * 0.8 + x * 6;
+      g.beginPath(); g.moveTo(X, Y); g.lineTo(X + Math.cos(an) * len, Y + Math.sin(an) * len); g.stroke();
+    }
+  };
+  const sm = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const jawMask = (x, y) => { const ax = Math.abs(x);
+    let m = sm(0.0, -0.012, y - (0.074 - ax * 0.32)) * sm(-0.008, 0.004, y) * sm(0.072, 0.06, ax);
+    const lx = ax / 0.026, ly = (y - 0.048) / 0.0095; m *= sm(1.0, 1.35, Math.sqrt(lx * lx + ly * ly));   // Mund frei
+    const nx = ax / 0.02, ny = (y - 0.07) / 0.008; m *= sm(1.0, 1.6, Math.sqrt(nx * nx + ny * ny));      // unter der Nase frei
+    return m; };
+  const jawZone = (x, y) => Math.random() < jawMask(x, y);
+  const shadow = (inside, a) => {   // weicher Bartschatten
+    const im = g.getImageData(0, 0, W, W), d = im.data, hc = new THREE.Color(o.brow);
+    for (let Y = 0; Y < W; Y += 1) for (let X = 0; X < W; X += 1) {
+      const x = B.x0 + X / W * B.w, y = B.y0 + (1 - Y / W) * B.h; if (inside !== jawZone && !inside(x, y)) continue;
+      const m = inside === jawZone ? jawMask(x, y) : 1; if (m <= 0.001) continue;
+      const i = (Y * W + X) * 4, k = a * m * (0.8 + Math.random() * 0.2), r = d[i + 3] / 255;
+      d[i] = (d[i] * r * (1 - k) + hc.r * 255 * k) / Math.max(0.001, r * (1 - k) + k); d[i + 1] = (d[i + 1] * r * (1 - k) + hc.g * 255 * k) / Math.max(0.001, r * (1 - k) + k); d[i + 2] = (d[i + 2] * r * (1 - k) + hc.b * 255 * k) / Math.max(0.001, r * (1 - k) + k);
+      d[i + 3] = Math.min(255, (r + k * (1 - r)) * 255);
+    }
+    g.putImageData(im, 0, 0);
+  };
+  if (o.beard === 1) { shadow(jawZone, 0.22); hairDots(jawZone, 5000, 0.16, 1.6); }
+  if (o.beard === 2) { shadow(jawZone, 0.55); hairDots(jawZone, 22000, 0.5, 3.2); hairDots((x, y) => y > 0.056 && y < 0.066 && Math.abs(x) < 0.026, 2500, 0.8, 3); }
+  if (o.beard === 3) {   // feine Stoppeln, Schnurrbart, Kinnbart
+    shadow(jawZone, 0.12); hairDots(jawZone, 2500, 0.12, 1.5);
+    hairDots((x, y) => y > 0.056 && y < 0.064 && Math.abs(x) < 0.024 - (y - 0.056) * 0.6, 2600, 0.85, 2.6);
+    hairDots((x, y) => y > 0.006 && y < 0.038 && Math.abs(x) < 0.017 - (0.038 - y) * 0.15 && !(y > 0.033 && Math.abs(x) < 0.008), 4200, 0.88, 3.2);
+  }
+  // Lippen
+  const mx = px(0), my = py(0.047), mw = 0.022 * sc;
+  g.fillStyle = lip; g.beginPath();   // Oberlippe mit Amorbogen
+  g.moveTo(mx - mw, my); g.quadraticCurveTo(mx - mw * 0.5, my - 0.006 * sc, mx - mw * 0.16, my - 0.0068 * sc); g.quadraticCurveTo(mx, my - 0.0052 * sc, mx + mw * 0.16, my - 0.0068 * sc);
+  g.quadraticCurveTo(mx + mw * 0.5, my - 0.006 * sc, mx + mw, my); g.quadraticCurveTo(mx, my + 0.001 * sc, mx - mw, my); g.fill();
+  const lg = g.createLinearGradient(0, my, 0, my + 0.009 * sc); lg.addColorStop(0, lip); lg.addColorStop(1, rgba(lip, 0.75));
+  g.fillStyle = lg; g.beginPath();   // Unterlippe
+  g.moveTo(mx - mw * 0.92, my + 0.0005 * sc); g.quadraticCurveTo(mx, my + 0.0115 * sc, mx + mw * 0.92, my + 0.0005 * sc); g.quadraticCurveTo(mx, my + 0.0015 * sc, mx - mw * 0.92, my + 0.0005 * sc); g.fill();
+  blob(0, 0.0435, 0.008, '#ffffff', 0.16, 0.45);   // Glanz Unterlippe
+  g.strokeStyle = lipD; g.lineWidth = 0.0013 * sc; g.lineCap = 'round'; g.beginPath(); g.moveTo(mx - mw * 1.02, my - 0.0004 * sc); g.quadraticCurveTo(mx, my + 0.0016 * sc, mx + mw * 1.02, my - 0.0004 * sc); g.stroke();
+  blob(0, 0.034, 0.014, skinD, 0.3, 0.4);  // Schatten unter der Unterlippe
+  // Augen
+  for (const s of [-1, 1]) {
+    const ex = px(s * 0.034), ey = py(0.1135), ew = 0.0145 * sc, eh = 0.0063 * sc;
+    const almond = () => { g.beginPath(); g.moveTo(ex - ew * s, ey + eh * 0.1); g.bezierCurveTo(ex - ew * 0.5 * s, ey - eh * 1.25, ex + ew * 0.45 * s, ey - eh * 1.2, ex + ew * s, ey - eh * 0.15); g.bezierCurveTo(ex + ew * 0.45 * s, ey + eh * 0.95, ex - ew * 0.5 * s, ey + eh * 1.0, ex - ew * s, ey + eh * 0.1); g.closePath(); };
+    g.save(); almond(); g.clip();
+    const wg = g.createRadialGradient(ex, ey, 0, ex, ey, ew); wg.addColorStop(0, '#f6f2ea'); wg.addColorStop(0.7, '#e7ddd2'); wg.addColorStop(1, '#bca99a'); g.fillStyle = wg; g.fillRect(ex - ew * 1.2, ey - eh * 2, ew * 2.4, eh * 4);
+    const ir = 0.0063 * sc, ix = ex + s * 0.0006 * sc, iy = ey + 0.0003 * sc;
+    const ig = g.createRadialGradient(ix, iy, ir * 0.2, ix, iy, ir); ig.addColorStop(0, shadeHex(o.eye, [1.35, 1.35, 1.35], 0.05)); ig.addColorStop(0.75, o.eye); ig.addColorStop(1, shadeHex(o.eye, [0.4, 0.4, 0.4]));
+    g.fillStyle = ig; g.beginPath(); g.arc(ix, iy, ir, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#0a0706'; g.beginPath(); g.arc(ix, iy, ir * 0.42, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(ex - ew * 1.2, ey - eh * 1.5, ew * 2.4, eh * 0.75);   // Schatten des Oberlids
+    g.restore();
+    g.fillStyle = 'rgba(255,255,255,0.95)'; g.beginPath(); g.arc(ix - ir * 0.35, iy - ir * 0.4, ir * 0.2, 0, Math.PI * 2); g.fill();
+    // Oberlid + Wimpern
+    g.strokeStyle = '#1d1210'; g.lineCap = 'round'; g.lineWidth = 0.0012 * sc;
+    g.beginPath(); g.moveTo(ex - ew * s, ey + eh * 0.1); g.bezierCurveTo(ex - ew * 0.5 * s, ey - eh * 1.25, ex + ew * 0.45 * s, ey - eh * 1.2, ex + ew * 1.08 * s, ey - eh * 0.3); g.stroke();
+    g.lineWidth = 0.0006 * sc;
+    for (let i = 0; i < 9; i++) { const t = 0.15 + i / 10, x = ex + (t * 2 - 1) * ew * s, y = ey - eh * (1.15 - Math.pow(t * 2 - 1, 2) * 1.05); g.beginPath(); g.moveTo(x, y); g.lineTo(x + s * 0.0016 * sc * t, y - 0.0016 * sc); g.stroke(); }
+    // Lidfalte und Unterlid
+    g.strokeStyle = rgba(skinD, 0.55); g.lineWidth = 0.0009 * sc;
+    g.beginPath(); g.moveTo(ex - ew * 0.85 * s, ey - eh * 1.2); g.quadraticCurveTo(ex, ey - eh * 2.5, ex + ew * 0.95 * s, ey - eh * 1.0); g.stroke();
+    g.strokeStyle = rgba(skinD, 0.4); g.lineWidth = 0.0007 * sc;
+    g.beginPath(); g.moveTo(ex - ew * 0.8 * s, ey + eh * 0.7); g.quadraticCurveTo(ex, ey + eh * 1.55, ex + ew * 0.95 * s, ey + eh * 0.2); g.stroke();
+    // Augenbraue aus einzelnen Härchen
+    g.strokeStyle = rgba(o.brow, 0.9); g.lineWidth = 0.00055 * sc;
+    for (let i = 0; i < 170; i++) {
+      const t = Math.random(), bx = s * (0.016 + t * 0.03), th = 0.0042 * (1 - t * 0.55);
+      const by = 0.1355 + Math.sin(t * Math.PI * 0.85) * 0.004 - t * 0.0015 + (Math.random() - 0.5) * th;
+      const X = px(bx), Y = py(by), an = (s > 0 ? -0.25 : Math.PI + 0.25) - (t - 0.3) * 0.5 * s;
+      g.beginPath(); g.moveTo(X, Y); g.lineTo(X + Math.cos(an) * 0.0028 * sc, Y + Math.sin(an) * 0.0016 * sc); g.stroke();
+    }
+  }
+  // Rand weich ausblenden, damit die Schicht nirgends sichtbar endet
+  g.save(); g.globalCompositeOperation = 'destination-in'; g.translate(px(0), py(0.088)); g.scale(1, 0.09 / 0.066);
+  const mg = g.createRadialGradient(0, 0, 0, 0, 0, 0.066 * sc); mg.addColorStop(0, '#000'); mg.addColorStop(0.78, '#000'); mg.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = mg; g.fillRect(-W, -W, 2 * W, 2 * W); g.restore();
+  const tex = canvasTex(c); tex.anisotropy = 4;
+  const mat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.55, metalness: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  FIG.faceTex[key] = mat; return mat;
 }
 // Trikot-Textur: Vorderseite (Sponsor, Wappen, Nummer), Rückseite (Name, große Nummer)
 // Gewebe-Muster (einmal erzeugt, für alle Trikots)
@@ -1426,35 +1604,36 @@ function buildFigure(kitName, num, team, star) {
   chest.add(mk([{ geo: G.neck, m: TRS(0, -0.98, 0, 0, 0, 0, 1, 1, 0.95), color: skin }, { geo: G.collar, m: TRS(0, 1.515 - 0.98, 0.004, Math.PI / 2 + 0.25, 0, 0, 1, 1, 0.8), color: k.trim }]));
   // Kopf
   const head = new THREE.Group(); head.position.y = 1.58 - 0.98; chest.add(head);
+  const eyeC = star ? '#3a2414' : pick(['#3b2412', '#2a1a10', '#4a3020', '#2f6b8f', '#4a6b2a', '#5a3a1a']);
   const hp = [
-    { geo: G.cran, m: TRS(0, 0.115, -0.005, 0, 0, 0, 0.9, 1.0, 0.98), color: skin },
-    { geo: G.jaw, m: TRS(0, 0.05, 0.018, 0, 0, 0, 0.86, 0.78, 0.96), color: skin },
-    { geo: G.cheek, m: TRS(-0.05, 0.08, 0.07), color: skin }, { geo: G.cheek, m: TRS(0.05, 0.08, 0.07), color: skin }, { geo: G.chin, m: TRS(0, 0.012, 0.072, 0, 0, 0, 1.1, 0.8, 0.9), color: skin },
-    { geo: G.brow, m: TRS(0, 0.128, 0.098, 0, 0, 0, 2.2, 1.6, 1.2), color: skinD },
-    { geo: G.nose, m: TRS(0, 0.09, 0.103, -0.35, 0, 0), color: skinD },
-    { geo: G.eyeW, m: TRS(-0.036, 0.115, 0.085), color: '#f4f1ea' }, { geo: G.eyeW, m: TRS(0.036, 0.115, 0.085), color: '#f4f1ea' },
-    { geo: G.iris, m: TRS(-0.036, 0.115, 0.1), color: pick(['#3b2412', '#1a1a1a', '#2f6b8f', '#4a6b2a']) }, { geo: G.iris, m: TRS(0.036, 0.115, 0.1), color: '#2a1a10' },
-    { geo: G.brow, m: TRS(-0.037, 0.14, 0.096, 0, 0, 0.1), color: hair }, { geo: G.brow, m: TRS(0.037, 0.14, 0.096, 0, 0, -0.1), color: hair },
-    { geo: G.mouth, m: TRS(0, 0.048, 0.094), color: '#8a3b34' },
-    { geo: G.ear, m: TRS(-0.098, 0.105, -0.005, 0, 0, 0, 0.5, 1, 0.8), color: skin }, { geo: G.ear, m: TRS(0.098, 0.105, -0.005, 0, 0, 0, 0.5, 1, 0.8), color: skin }
+    { geo: G.headS, color: skin },
+    { geo: G.noseBridge, m: TRS(0, 0.098, 0.097, -0.32, 0, 0, 1, 1, 0.9), color: skin },
+    { geo: G.noseTip, m: TRS(0, 0.0765, 0.106, 0, 0, 0, 1.05, 0.9, 0.9), color: skin },
+    { geo: G.nostril, m: TRS(-0.011, 0.0725, 0.099, 0, 0, 0, 0.9, 0.75, 0.9), color: skin }, { geo: G.nostril, m: TRS(0.011, 0.0725, 0.099, 0, 0, 0, 0.9, 0.75, 0.9), color: skin },
+    { geo: G.earS, m: TRS(-0.094, 0.104, -0.008, 0, -0.35, 0), color: skin }, { geo: G.earS, m: TRS(0.094, 0.104, -0.008, 0, 0.35, 0), color: skin },
+    { geo: G.earIn, m: TRS(-0.104, 0.104, -0.004, 0, 0, 0, 0.35, 1.1, 0.7), color: skinD }, { geo: G.earIn, m: TRS(0.104, 0.104, -0.004, 0, 0, 0, 0.35, 1.1, 0.7), color: skinD }
   ];
   const style = star ? 'star' : pick(['short', 'short', 'buzz', 'afro', 'long', 'bun', 'mohawk', 'bald', 'short']);
   if (style === 'star') {   // kurze dunkle Seiten, blondierter Schopf oben, weißes Stirnband
     hp.push({ geo: G.hairBuzz, m: TRS(0, 0.118, -0.008, -0.3, 0, 0, 0.93, 0.98, 1), color: hair });
     hp.push({ geo: G.hairCap, m: TRS(0, 0.15, 0.0, -0.2, 0, 0, 0.62, 0.78, 0.95), color: SKIN_OPTS.hair[SKIN.hair][1] });
     hp.push({ geo: G.headband, m: TRS(0, 0.165, -0.004, Math.PI / 2 + 0.22, 0, 0, 0.93, 1.02, 1), color: '#ffffff' });
-    hp.push({ geo: G.beard, m: TRS(0, 0.032, 0.02, 0, 0, 0, 0.8, 0.5, 0.92), color: '#4a3020' });
   }
-  if (style === 'short') { hp.push({ geo: G.hairCap, m: TRS(0, 0.125, -0.012, -0.3, 0, 0, 0.95, 1, 1), color: hair }); for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; hp.push({ geo: G.clump, m: TRS(Math.cos(a) * 0.06, 0.205 + Math.random() * 0.012, -0.02 + Math.sin(a) * 0.06), color: hair }); } }
+  if (style === 'short') { hp.push({ geo: G.hairCap, m: TRS(0, 0.122, -0.014, -0.58, 0, 0, 0.95, 1, 1), color: hair }); hp.push({ geo: G.hairCap, m: TRS(0, 0.134, 0.004, -0.42, 0, 0, 0.86, 0.86, 0.92), color: hair }); }
   if (style === 'buzz') hp.push({ geo: G.hairBuzz, m: TRS(0, 0.12, -0.008, -0.3, 0, 0, 0.93, 0.98, 1), color: hair });
-  if (style === 'afro') hp.push({ geo: G.afro, m: TRS(0, 0.12, -0.02, -0.25, 0, 0, 1, 0.95, 1), color: hair });
-  if (style === 'long') { hp.push({ geo: G.hairCap, m: TRS(0, 0.125, -0.012, -0.3, 0, 0, 0.97, 1, 1.02), color: hair }); hp.push({ geo: G.longBack, m: TRS(0, 0.06, -0.075), color: hair }); }
-  if (style === 'bun') { hp.push({ geo: G.hairCap, m: TRS(0, 0.125, -0.012, -0.3, 0, 0, 0.95, 1, 1), color: hair }); hp.push({ geo: G.bun, m: TRS(0, 0.215, -0.07), color: hair }); }
-  if (style === 'mohawk') { hp.push({ geo: G.hairBuzz, m: TRS(0, 0.118, -0.008, -0.3, 0, 0, 0.93, 0.98, 1), color: skinD }); hp.push({ geo: G.mohawk, m: TRS(0, 0.22, -0.01, -0.15, 0, 0), color: hair }); }
-  if (!star && Math.random() < 0.3) hp.push({ geo: G.beard, m: TRS(0, 0.045, 0.012, 0, 0, 0, 0.9, 0.74, 0.98), color: hair });
-  head.add(mk(hp));
+  if (style === 'afro') hp.push({ geo: G.afro, m: TRS(0, 0.118, -0.028, -0.62, 0, 0, 0.92, 0.9, 0.95), color: hair });
+  if (style === 'long') { hp.push({ geo: G.hairCap, m: TRS(0, 0.122, -0.014, -0.58, 0, 0, 0.97, 1, 1.02), color: hair }); hp.push({ geo: G.longBack, m: TRS(0, 0.075, -0.07), color: hair }); }
+  if (style === 'bun') { hp.push({ geo: G.hairCap, m: TRS(0, 0.122, -0.014, -0.58, 0, 0, 0.95, 1, 1), color: hair }); hp.push({ geo: G.bun, m: TRS(0, 0.215, -0.07), color: hair }); }
+  if (style === 'mohawk') { hp.push({ geo: G.hairBuzz, m: TRS(0, 0.118, -0.008, -0.3, 0, 0, 0.93, 0.98, 1), color: skinD }); hp.push({ geo: G.mohawk, m: TRS(0, 0.208, -0.012, -0.15, 0, 0), color: hair }); }
+  const beard = star ? 3 : team === 2 ? (Math.random() < 0.3 ? 1 : 0) : (r => r < 0.14 ? 2 : r < 0.36 ? 1 : 0)(Math.random());
+  const HAIR_GEOS = [G.hairCap, G.hairBuzz, G.afro, G.bun, G.longBack, G.mohawk, G.clump];
+  const hairParts = hp.filter(q => HAIR_GEOS.includes(q.geo)).map(q => Object.assign({ uvs: 6, uvt: 2 }, q));
+  head.add(mk(hp.filter(q => !HAIR_GEOS.includes(q.geo))));
+  if (hairParts.length) { const hm = new THREE.Mesh(mergeColored(hairParts, true), FIG.hairMat); hm.castShadow = true; head.add(hm); }
+  const face = new THREE.Mesh(G.faceDecal, faceTexture({ skin, brow: star ? '#1e130c' : hair, eye: eyeC, beard }));
+  face.renderOrder = 1; head.add(face);
   const tongue = new THREE.Mesh(FIG.tongue || (FIG.tongue = new THREE.BoxGeometry(0.032, 0.01, 0.05)), FIG.tongueMat || (FIG.tongueMat = stdMat('#e0606e', { roughness: 0.4 })));
-  tongue.position.set(0, 0.033, 0.112); tongue.rotation.x = 0.55; tongue.visible = false; head.add(tongue);
+  tongue.position.set(0, 0.042, 0.1); tongue.rotation.x = 0.55; tongue.visible = false; head.add(tongue);
   // Beine
   const legs = [], knees = [], arms = [], elbows = [], ankles = [], fingers = [];
   for (const sd of [-1, 1]) {
@@ -3979,7 +4158,7 @@ const Match = (() => {
   const CELE_IDS = ['generic', ...CELES.map(c => c.id)];
   const SIG_IDS = ['flag', 'card', 'goal', 'foul', 'whistle'];
   const r3 = v => Math.round(v * 1000) / 1000;
-  const PERSONAL = ['Pass zu dir', 'Ball verloren', 'Kurve', 'Antritt', 'Ball fordern', 'Hochgelupft', 'Kein Ball', 'Für Tricks', 'Trick:', 'Kamera', 'Grafik', 'Abschlag zu dir', 'Dein Tor', 'Ball erobert', 'Ball versprungen', 'Du steuerst', 'Du bist Neymar'];
+  const PERSONAL = ['Pass zu dir', 'Ball verloren', 'Kurve', 'Antritt', 'Ball fordern', 'Hochgelupft', 'Kein Ball', 'Für Tricks', 'Trick:', 'Kamera', 'Grafik', 'Abschlag zu dir', 'Dein Tor', 'Ball erobert', 'Ball versprungen', 'Du steuerst', 'Du bist Neymar', 'Online', 'Trainingsplatz', 'Dein Freund'];
   function emit(ev) { if (M.mpRole === 'host') M.netEv.push(ev); }
   function asCtrl(p, st, fn) {
     if (!p || !st) return;
@@ -3996,27 +4175,40 @@ const Match = (() => {
     }
   }
   function newRemoteState() { return { curve: 0, charge: 0, charging: false, sprint: false, dcd: 0, tcd: 0, bcd: 0, tsel: 'rainbow', bike: null, cam: 'ego', jx: 0, jy: 0 }; }
-  function enableHost() {
-    M.mpRole = 'host'; M.netEv = [];
-    M.ctrl2 = players.find(p => p.team === 1 && p.num === 9 && p.active) || players.find(p => p.team === 1 && !p.isGK && p.active);
+  function enableHost(opts) {
+    opts = opts || {};
+    const coop = opts.team !== 'vs', t2 = coop ? 0 : 1;
+    M.mpRole = 'host'; M.netEv = []; M.mpCoop = coop;
+    if (M.training) {
+      M.ctrl2 = players.find(p => p.team === t2 && p.num === 9);
+      const p = M.ctrl2, c = M.ctrl, f = fwd(c);
+      resetOne(p); p.active = true; p.fig.root.visible = true; p.alertT = 0;
+      if (coop) { p.x = c.x - f.x * 2 + f.z * 7; p.z = c.z - f.z * 2 - f.x * 7; p.a = c.a; }
+      else { p.x = c.x + f.x * 9; p.z = c.z + f.z * 9; p.a = Math.atan2(c.x - p.x, c.z - p.z); setKeeper(0, true); }
+      p.x = clamp(p.x, -HL + 1, HL - 1); p.z = clamp(p.z, -HW + 1, HW - 1);
+      M.mpCoop = coop; trainHud();
+    } else M.ctrl2 = players.find(p => p.team === t2 && p.num === 9 && p.active) || players.find(p => p.team === t2 && !p.isGK && p.active && p !== M.ctrl);
     M.rs = newRemoteState();
     if (!Sound._wrapped) {
       Sound._wrapped = true;
       for (const n of ['kick', 'whistle', 'cheer', 'groan', 'clang', 'shout']) { const f = Sound[n]; Sound[n] = (...a) => { f(...a); emit({ k: 'snd', n, a }); }; }
     }
-    showBanner('Online: Du bist Barça (Neymar Jr.), dein Freund spielt Real Nr. 9', 3);
+    showBanner(M.training ? (coop ? 'Online-Training: Ihr trainiert zusammen – dein Freund ist Nr. 9' : 'Online-Training: Du gegen deinen Freund (Real Nr. 9)')
+      : coop ? 'Online: Ihr spielt zusammen für Barça – dein Freund ist Nr. 9' : 'Online: Du bist Barça (Neymar Jr.), dein Freund spielt Real Nr. 9', 3);
   }
   function disableMp(msg) {
+    if (M.training && M.ctrl2 && M.ctrl2 !== M.ctrl) { M.ctrl2.active = false; M.ctrl2.fig.root.visible = false; M.ctrl2.x = 999; M.ctrl2.z = 999; if (ball.owner === M.ctrl2) newTrainBall(); }
     M.mpRole = null; M.ctrl2 = null; M.rs = null; M.netEv = [];
     if (msg) showBanner(msg, 3);
   }
   function setRemoteInput(d) { if (!M.rs) return; M.rs.jx = clamp(+d.jx || 0, -1, 1); M.rs.jy = clamp(+d.jy || 0, -1, 1); M.rs.sprint = !!d.sp; if (['ego', 'shoulder', 'follow', 'tv'].includes(d.cam)) M.rs.cam = d.cam; }
   function hostRemote(dt) {
     if (M.mpRole !== 'host' || !M.ctrl2 || !M.rs) return;
-    if (!M.ctrl2.active) { const c = players.filter(q => q.team === 1 && q.active && !q.isGK).sort((a, b) => dist(a, ball) - dist(b, ball))[0]; if (c) M.ctrl2 = c; }
+    if (!M.ctrl2.active) { const t2 = M.ctrl2.team, c = players.filter(q => q.team === t2 && q.active && !q.isGK && q !== M.ctrl).sort((a, b) => dist(a, ball) - dist(b, ball))[0]; if (c) M.ctrl2 = c; }
     const rs = M.rs; rs.dcd -= dt; rs.tcd -= dt; rs.bcd -= dt;
     for (const a of Net.takeInbox()) {
       if (a.k === 'skip') { skipReplay(); continue; }
+      if (a.k === 'targets' && M.training) { toggleTargets(); continue; }
       asCtrl(M.ctrl2, rs, () => {
         if (a.k === 'sd') shootDown();
         else if (a.k === 'su') { if (typeof a.v === 'number') M.charge = clamp(a.v, 0.08, 1); shootUp(); }
@@ -4030,6 +4222,7 @@ const Match = (() => {
         else if (a.k === 'head') myHeader();
         else if (a.k === 'jh') jugHead();
         else if (a.k === 'jk') jugKick(a.v > 0 ? 1 : -1);
+        else if (a.k === 'nb' && M.training) newTrainBall();
       });
     }
   }
@@ -4063,6 +4256,7 @@ const Match = (() => {
     const ev = M.netEv; M.netEv = [];
     return { t: 's', st: M.state, clk: r3(M.clock), sc: M.score.slice(), h: M.half, d: [teams[0].dir, teams[1].dir],
       set: M.set ? M.set.type : null, tk: M.set ? idx(M.set.taker) : -1, c2: idx(M.ctrl2), gs: M.goal ? idx(M.goal.scorer) : -1, gt: M.goal ? M.goal.team : -1,
+      tr: M.training ? [M.tstats.goals, targets && targets[0].visible ? 1 : 0, M.tstats.goalsR || 0] : 0, co: M.mpCoop ? 1 : 0,
       jg: M.rs && M.rs.jug ? M.rs.jug.count : -1, b: [r3(ball.x), r3(ball.y), r3(ball.z), r3(ball.vx), r3(ball.vy), r3(ball.vz), r3(ball.spin || 0), idx(ball.owner), ball.inNet || 0], p: P, o: O, ev };
   }
   function remoteInputPacket() {
@@ -4085,16 +4279,20 @@ const Match = (() => {
         else if (e.k === 'end') guestEnd(e.sc);
       } catch (er) { /* Ereignis ignorieren */ }
     }
-    if (S.sc[0] !== M.score[0] || S.sc[1] !== M.score[1]) { M.score = S.sc.slice(); updateScore(); }
+    if (S.tr) {   // Online-Training beim Gast
+      if (!M.remoteTrain) { M.remoteTrain = true; $('match').classList.add('training'); $('trainBar').classList.remove('hidden'); $('trainBar').classList.add('guest'); }
+      $('sc').textContent = S.co ? '🏃 Training · ⚽ ' + S.tr[0] : '⚔️ Barça ' + S.tr[0] + ' : ' + S.tr[2] + ' Real';
+      if (!!S.tr[1] !== !!(targets && targets[0].visible)) setTargets(!!S.tr[1]);
+    } else if (S.sc[0] !== M.score[0] || S.sc[1] !== M.score[1]) { M.score = S.sc.slice(); updateScore(); }
     { const on = S.jg >= 0; if (on !== jugUiOn) showJugUi(on); if (on) $('jugCount').innerHTML = S.jg + '<small>Kontakte</small>'; M.ctrl.jugglePose = on; }
     if (S.c2 >= 0 && players[S.c2] && players[S.c2] !== M.ctrl) { M.ctrl = players[S.c2]; updateScore(); }
   }
   function guestEnd(sc) {
-    const [a, b] = sc;
+    const [a, b] = sc, real = M.ctrl && M.ctrl.team === 1, mine = real ? b : a, theirs = real ? a : b;
     const st = lsGet('fb_matchStats', { w: 0, d: 0, l: 0 });
-    if (b > a) st.w++; else if (a === b) st.d++; else st.l++;
+    if (mine > theirs) st.w++; else if (a === b) st.d++; else st.l++;
     lsSet('fb_matchStats', st);
-    $('endTitle').textContent = b > a ? '🏆 Sieg mit Real!' : a === b ? '🤝 Unentschieden' : '😞 Niederlage';
+    $('endTitle').textContent = mine > theirs ? (real ? '🏆 Sieg mit Real!' : '🏆 Sieg mit Barça!') : a === b ? '🤝 Unentschieden' : '😞 Niederlage';
     $('endText').innerHTML = `Endstand: <b>BARÇA ${a} : ${b} REAL</b><br>Online-Spiel · Der Gastgeber startet das nächste Spiel.`;
     $('endAgain').classList.add('hidden');
     setTimeout(() => $('endScreen').classList.remove('hidden'), 2300);
@@ -4164,17 +4362,20 @@ const Match = (() => {
     endShootoutMode();
     const was = running;
     running = true; lastT = performance.now(); camInit = false;
-    M.mode = 'remote'; M.mpRole = 'guest'; M.snap = null; M.rec = []; M.recT = 0; M.goal = null; M.replay = null;
+    M.mode = 'remote'; M.mpRole = 'guest'; M.snap = null; M.rec = []; M.recT = 0; M.goal = null; M.replay = null; M.remoteTrain = false;
+    $('match').classList.remove('training'); $('trainBar').classList.add('hidden'); $('trainBar').classList.remove('guest'); setTargets(false);
     try { if (conf.kit && SKIN_OPTS.kit[conf.kit]) SKIN.kit = conf.kit; if (conf.hair) SKIN.hair = conf.hair; if (conf.boots) SKIN.boots = conf.boots; if (MDIFFS[conf.mdiff]) MDIFF = conf.mdiff; } catch (e) {}
     rebuildFigures();
     M.score = [0, 0]; M.state = 'kickoff';
-    M.ctrl = players[conf.me] || players.find(p => p.team === 1 && p.num === 9);
+    M.ctrl = players[conf.me] || players.find(p => p.team === (conf.team === 'vs' ? 1 : 0) && p.num === 9);
     $('bCam').textContent = '🎥 ' + CAM_NAMES[M.cam];
     $('keyHelp').style.display = IS_TOUCH ? 'none' : 'block'; trickLabel(); lookLabel();
     $('endScreen').classList.add('hidden');
     resize(); updateScore();
     Sound.crowd(true, 0.2);
-    showBanner('Online: Du spielst Real (Nr. 9) gegen Barça!', 3);
+    const coop = M.ctrl.team === 0;
+    showBanner(conf.mode === 'train' ? (coop ? 'Online-Training: Ihr trainiert zusammen – du bist Nr. 9' : 'Online-Training: Du (Real Nr. 9) gegen deinen Freund')
+      : coop ? 'Online: Ihr spielt zusammen für Barça – du bist Nr. 9' : 'Online: Du spielst Real (Nr. 9) gegen Barça!', 3);
     if (!was) requestAnimationFrame(frame);
     return true;
   }
@@ -4183,6 +4384,7 @@ const Match = (() => {
   function trainHud() {
     const t = M.tstats;
     const jr = lsGet('fb_jugRec', 0);
+    if (M.ctrl2 && !M.mpCoop) { $('sc').innerHTML = `⚔️ Barça ${t.goals} : ${t.goalsR || 0} Real · 🎯 ${t.targets}`; return; }
     $('sc').innerHTML = `⚽ ${t.goals} · 🎯 ${t.targets} · Schüsse ${t.shots}` + (t.best ? ` · ${Math.round(t.best)} km/h` : '') + (jr ? ` · 🦶 ${jr}` : '');
   }
   function startTraining() {
@@ -4210,12 +4412,14 @@ const Match = (() => {
     return true;
   }
   function endTraining() {
-    M.training = false; $('match').classList.remove('training'); $('trainBar').classList.add('hidden');
+    M.training = false; M.remoteTrain = false; $('match').classList.remove('training'); $('trainBar').classList.add('hidden'); $('trainBar').classList.remove('guest');
     if (targets) targets.forEach(t => { t.visible = false; });
   }
   function respawnBall(delay) { M.trainRespawn = delay || 0.01; }
   function newTrainBall() {
-    const p = M.ctrl; if (!p || !p.active) return;
+    let p = M.ctrl;
+    if (M.trainBallTo) { if (M.trainBallTo.active) p = M.trainBallTo; M.trainBallTo = null; }
+    if (!p || !p.active) return;
     const f = fwd(p);
     placeBall(p.x + f.x * 0.7, p.z + f.z * 0.7); ball.owner = null; ball.offside = null; gainBall(p);
     for (const k of players) { k.react = null; if (k.isGK && k.active) { k.dive = null; k.holdT = 0; } }
@@ -4241,11 +4445,12 @@ const Match = (() => {
   }
   function resetOne(p) { p.vx = p.vz = 0; p.fallen = 0; p.stunned = 0; p.tackleCd = 0.8; p.kickCd = 0; p.burst = 0; p.lunge = 0; p.receiving = 0; p.dive = null; p.react = null; p.cele = null; p.holdT = 0; p.kickAnim = 0; p.trick = null; p.gesture = null; p.bicycle = 0; p.stamina = 1; p.runT = 0; }
   function clearBots() {
-    for (const p of players) if (!p.isGK && p !== M.ctrl) { p.active = false; p.fig.root.visible = false; p.x = 999; p.z = 999; }
-    if (ball.owner && ball.owner !== M.ctrl && !ball.owner.isGK) newTrainBall();
+    for (const p of players) if (!p.isGK && p !== M.ctrl && p !== M.ctrl2) { p.active = false; p.fig.root.visible = false; p.x = 999; p.z = 999; }
+    if (ball.owner && ball.owner !== M.ctrl && ball.owner !== M.ctrl2 && !ball.owner.isGK) newTrainBall();
     showBanner('Alle Bots entfernt', 1);
   }
-  function toggleTargets() {
+  function setTargets(on) { if (!on && !targets) return; if (!targets || targets[0].visible !== on) { const q = M.quiet; M.quiet = M.mpRole === 'guest'; try { toggleTargets(true); } finally { M.quiet = q; } } }
+  function toggleTargets(silent) {
     if (!targets) {
       targets = [];
       const mat = new THREE.MeshBasicMaterial({ color: LC('#ff3b3b'), side: THREE.DoubleSide });
@@ -4255,7 +4460,7 @@ const Match = (() => {
       }
     }
     const on = !targets[0].visible; targets.forEach(t => { t.visible = on; });
-    showBanner(on ? '🎯 Zielscheiben an – triff die Torecken!' : 'Zielscheiben aus', 1.2); markTrainBtns();
+    if (silent !== true) showBanner(on ? '🎯 Zielscheiben an – triff die Torecken!' : 'Zielscheiben aus', 1.2); markTrainBtns();
   }
   function markTrainBtns() {
     const k = players.find(p => p.team === 1 && p.isGK), k0 = players.find(p => p.team === 0 && p.isGK);
@@ -4263,9 +4468,13 @@ const Match = (() => {
     $('tTargets').classList.toggle('on', !!(targets && targets[0].visible));
   }
   function trainingGoal(s) {
-    const into = teams[0].dir === s;   // ins gegnerische Tor
+    const k = ball.last, tm = k ? k.team : 0, friend = M.ctrl2 && k === M.ctrl2;
+    const into = teams[tm].dir === s;   // ins gegnerische Tor (aus Sicht des Schützen)
+    if (M.ctrl2) M.trainBallTo = into ? (tm === M.ctrl.team ? (M.mpCoop ? null : M.ctrl2) : M.ctrl) : null;   // gegeneinander: Anstoß für den anderen
+    if (into && tm !== 0) { M.tstats.goalsR = (M.tstats.goalsR || 0) + 1; showBig('TOR!', 1.1, '#ffffff'); if (friend) { showBanner('Dein Freund trifft für Real!', 1.4); emit({ k: 'banner', t: '⚽ Dein Tor für Real!', sec: 1.4 }); } else showBanner('Tor für Real', 1.4); Sound.cheer(1.2, 0.3); signalOfficial('goal', 0); trainHud(); respawnBall(1.5); return; }
     if (into) {
       M.tstats.goals++;
+      if (friend) { showBanner('Dein Freund (Nr. 9) trifft!', 1.4); emit({ k: 'banner', t: '⚽ Dein Tor!', sec: 1.4 }); }
       let hit = false;
       if (targets && targets[0].visible) for (const t of targets) if (Math.hypot(ball.z - t.userData.z, ball.y - t.userData.y) < 0.72) { hit = true; t.userData.flash = 1.2; }
       if (hit) { M.tstats.targets++; showBig('TREFFER!', 1.3, '#ff6a6a'); showBanner('🎯 Zielscheibe getroffen! +1', 1.2); } else showBig('TOR!', 1.1, '#5cff8a');
@@ -4626,7 +4835,8 @@ const App = (() => {
     $('match').classList.remove('hidden');
     try { const el = document.documentElement; if (IS_TOUCH && el.requestFullscreen && !document.fullscreenElement) el.requestFullscreen().catch(() => {}); } catch (e) {}
   }
-  function startHostMatch() { enterMatchScreen(); if (Match.start()) Match.enableHost(); }
+  function mpOptions() { return { mode: lsGet('fb_mpMode', 'match') === 'train' ? 'train' : 'match', team: lsGet('fb_mpTeam', 'coop') === 'vs' ? 'vs' : 'coop' }; }
+  function startHostMatch() { const o = mpOptions(); enterMatchScreen(); if (o.mode === 'train' ? Match.startTraining() : Match.start()) Match.enableHost(o); return o; }
   function startGuestMatch(conf) { enterMatchScreen(); Match.startRemote(conf); }
   function guestLost() { toPenalty(); $('mpMenu').classList.remove('hidden'); $('mpStatus').textContent = 'Die Verbindung zum Gastgeber wurde getrennt.'; }
   function tap(el, fn) { el.addEventListener('click', e => { e.preventDefault(); Sound.init(); fn(e); }); }
@@ -4680,13 +4890,20 @@ const App = (() => {
   tap($('tMate'), () => Match.spawnBot(0));
   tap($('tKeeper'), () => { const k = Match.players.find(p => p.team === 1 && p.isGK); Match.setKeeper(1, !k.active); });
   tap($('tOwnKeeper'), () => { const k = Match.players.find(p => p.team === 0 && p.isGK); Match.setKeeper(0, !k.active); });
-  tap($('tTargets'), () => Match.toggleTargets());
-  tap($('tBall'), () => Match.newTrainBall());
+  tap($('tTargets'), () => { if (Match.M.mode === 'remote') Net.act('targets'); else Match.toggleTargets(); });
+  tap($('tBall'), () => { if (Match.M.mode === 'remote') Net.act('nb'); else Match.newTrainBall(); });
   tap($('tClear'), () => Match.clearBots());
   tap($('menuOnline'), () => { $('mpMenu').classList.remove('hidden'); $('mpCode').textContent = '–'; $('mpStatus').textContent = Net.available() ? 'Erstelle einen Raum oder gib den Code deines Freundes ein.' : 'Online-Modus in diesem Browser nicht verfügbar.'; });
   tap($('mpHost'), () => { if (typeof THREE === 'undefined') { $('mpStatus').textContent = '3D nicht verfügbar.'; return; } Net.host(); });
   tap($('mpJoin'), () => { if (typeof THREE === 'undefined') { $('mpStatus').textContent = '3D nicht verfügbar.'; return; } Net.join($('mpInput').value); });
   tap($('mpClose'), () => { Net.close(); $('mpMenu').classList.add('hidden'); });
+  // Online-Optionen (wählt der Gastgeber)
+  const MP = { mode: lsGet('fb_mpMode', 'match'), team: lsGet('fb_mpTeam', 'coop') };
+  if (!['match', 'train'].includes(MP.mode)) MP.mode = 'match'; if (!['coop', 'vs'].includes(MP.team)) MP.team = 'coop';
+  const markMp = () => { document.querySelectorAll('#mpModeBtns button').forEach(b => b.classList.toggle('on', b.dataset.m === MP.mode)); document.querySelectorAll('#mpTeamBtns button').forEach(b => b.classList.toggle('on', b.dataset.t === MP.team)); };
+  document.querySelectorAll('#mpModeBtns button').forEach(b => tap(b, () => { MP.mode = b.dataset.m; lsSet('fb_mpMode', MP.mode); markMp(); }));
+  document.querySelectorAll('#mpTeamBtns button').forEach(b => tap(b, () => { MP.team = b.dataset.t; lsSet('fb_mpTeam', MP.team); markMp(); }));
+  markMp();
   document.body.appendChild($('mpMenu'));
   $('mpInput').addEventListener('keydown', e => e.stopPropagation());
   // Trikots & Skins
@@ -4863,9 +5080,9 @@ const Net = (() => {
       conn = c; wire();
       c.on('open', () => {
         status('Mitspieler verbunden! Anpfiff …');
-        App.startHostMatch();
+        const o = App.startHostMatch();
         const me = Match.players.indexOf(Match.M.ctrl2);
-        send({ t: 'hello', conf: { kit: SKIN.kit, hair: SKIN.hair, boots: SKIN.boots, mdiff: MDIFF, me } });
+        send({ t: 'hello', conf: { kit: SKIN.kit, hair: SKIN.hair, boots: SKIN.boots, mdiff: MDIFF, me, mode: o.mode, team: o.team } });
         started = true;
       });
     });
@@ -4899,7 +5116,7 @@ const Net = (() => {
     if (!conn) return;
     const wasHost = role === 'host';
     conn = null;
-    if (wasHost) Match.disableMp('Dein Mitspieler hat das Spiel verlassen – Real spielt jetzt wieder der Computer.');
+    if (wasHost) Match.disableMp(Match.M.training ? 'Dein Freund hat das Training verlassen.' : Match.M.mpCoop ? 'Dein Freund hat das Spiel verlassen – Nr. 9 spielt jetzt der Computer.' : 'Dein Mitspieler hat das Spiel verlassen – Real spielt jetzt wieder der Computer.');
     else if (started) App.guestLost();
     started = false;
   }

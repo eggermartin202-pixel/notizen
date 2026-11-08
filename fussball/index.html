@@ -1659,6 +1659,17 @@ function shirtTexture(kitName, num, name) {
   g.fillStyle = gr; g.fillRect(0, 0, W, H);
   const t = canvasTex(c); t.anisotropy = 4; return t;
 }
+function headbandMat() {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 64; const g = c.getContext('2d');
+  g.fillStyle = '#f7f7f4'; g.fillRect(0, 0, 1024, 64);
+  for (let y = 0; y < 64; y += 2) { g.fillStyle = y % 4 ? 'rgba(0,0,0,0.035)' : 'rgba(255,255,255,0.5)'; g.fillRect(0, y, 1024, 1); }   // Frottee-Rippen
+  for (let i = 0; i < 1500; i++) { g.fillStyle = `rgba(0,0,0,${Math.random() * 0.04})`; g.fillRect(Math.random() * 1024, Math.random() * 64, 2, 2); }
+  g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(0, 0, 1024, 3); g.fillRect(0, 61, 1024, 3);   // Nähte
+  g.font = '900 38px Arial, Helvetica, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = '#111111'; g.fillText('100% JESUS', 512, 34);
+  const t = canvasTex(c); t.anisotropy = 8;
+  return new THREE.MeshStandardMaterial({ map: t, roughness: 0.92, metalness: 0 });
+}
 function buildFigure(kitName, num, team, star) {
   const k = FIG.kits[kitName], G = FIG.g;
   const pick = a => a[(Math.random() * a.length) | 0];
@@ -1690,8 +1701,7 @@ function buildFigure(kitName, num, team, star) {
   const style = star ? 'star' : pick(['short', 'short', 'buzz', 'afro', 'long', 'bun', 'mohawk', 'bald', 'short', 'fade', 'fade']);
   if (style === 'star') {   // kurze dunkle Seiten, blondierter Schopf oben, weißes Stirnband
     hp.push({ geo: G.hairBuzz, m: TRS(0, 0.118, -0.008, -0.3, 0, 0, 0.93, 0.98, 1), color: hair });
-    hp.push({ geo: G.hairCap, m: TRS(0, 0.15, 0.0, -0.2, 0, 0, 0.62, 0.78, 0.95), color: SKIN_OPTS.hair[SKIN.hair][1] });
-    hp.push({ geo: G.headband, m: TRS(0, 0.165, -0.004, Math.PI / 2 + 0.22, 0, 0, 0.93, 1.02, 1), color: '#ffffff' });
+    hp.push({ geo: G.hairCap, m: TRS(0, 0.162, -0.012, -0.2, 0, 0, 0.62, 0.74, 0.88), color: SKIN_OPTS.hair[SKIN.hair][1] });
   }
   if (style === 'short') { hp.push({ geo: G.hairCap, m: TRS(0, 0.122, -0.014, -0.58, 0, 0, 0.95, 1, 1), color: hair }); hp.push({ geo: G.hairCap, m: TRS(0, 0.134, 0.004, -0.42, 0, 0, 0.86, 0.86, 0.92), color: hair }); }
   if (style === 'fade') { hp.push({ geo: G.hairBuzz, m: TRS(0, 0.118, -0.008, -0.3, 0, 0, 0.93, 0.98, 1), color: hair }); hp.push({ geo: G.hairCap, m: TRS(0, 0.145, -0.006, -0.42, 0, 0, 0.8, 0.86, 0.95), color: hair }); }
@@ -1718,6 +1728,10 @@ function buildFigure(kitName, num, team, star) {
     }
   }
   const hl = style === 'bald' ? 0 : (style === 'buzz' || style === 'mohawk' || style === 'star' || style === 'fade') ? 2 : style === 'afro' ? 3 : 1;
+  if (star) {   // weißes Stirnband mit Aufschrift
+    const band = new THREE.Mesh(FIG.bandGeo || (FIG.bandGeo = new THREE.CylinderGeometry(0.106, 0.104, 0.03, 56, 1, true, Math.PI)), FIG.bandMat || (FIG.bandMat = headbandMat()));
+    band.position.set(0, 0.147, -0.004); band.rotation.x = -0.2; band.scale.set(0.95, 1, 1.04); band.castShadow = true; head.add(band);
+  }
   const face = new THREE.Mesh(G.faceDecal, faceTexture({ skin, brow: star ? '#1e130c' : hair, eye: eyeC, beard, hair: style === 'mohawk' ? skinD : hair, hl }));
   face.renderOrder = 1; head.add(face);
   const tongue = new THREE.Mesh(FIG.tongue || (FIG.tongue = new THREE.BoxGeometry(0.032, 0.01, 0.05)), FIG.tongueMat || (FIG.tongueMat = stdMat('#e0606e', { roughness: 0.4 })));

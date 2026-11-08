@@ -1111,7 +1111,7 @@ function mergeColored(parts, withUV) {
     const pos = g.attributes.position.array, nor = g.attributes.normal.array, c = LC(p.color);
     for (let i = 0; i < pos.length; i++) { P.push(pos[i]); N.push(nor[i]); }
     for (let i = 0; i < pos.length / 3; i++) C.push(c.r, c.g, c.b);
-    if (withUV) { const uv = g.attributes.uv; for (let i = 0; i < pos.length / 3; i++) U.push(uv ? uv.getX(i) * (p.uvs || 1) : 0, uv ? uv.getY(i) * (p.uvt || 1) : 0); }
+    if (withUV) { const uv = g.attributes.uv; for (let i = 0; i < pos.length / 3; i++) U.push(uv ? uv.getX(i) * (p.uvs || 1) : 0, uv ? uv.getY(i) * (p.uvt || 1) + (p.uvo || 0) : 0); }
     g.dispose();
   }
   const out = new THREE.BufferGeometry();
@@ -1369,22 +1369,83 @@ function buildHeadGeos() {
   FIG.g.earS = (() => { const e = new THREE.SphereGeometry(0.03, 10, 8); e.scale(0.42, 1, 0.75); return e; })();
   FIG.g.earIn = S(0.016, 8, 6);
   FIG.faceTex = {};
-  const hc = document.createElement('canvas'); hc.width = 256; hc.height = 256; const h = hc.getContext('2d');
-  h.fillStyle = '#9a9a9a'; h.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 2600; i++) {   // Strähnen laufen von oben (v=1) nach unten
-    const x = Math.random() * 256, y = Math.random() * 256, l = 20 + Math.random() * 60, v = 90 + Math.random() * 165 | 0;
-    h.strokeStyle = `rgba(${v},${v},${v},${0.25 + Math.random() * 0.35})`; h.lineWidth = 0.6 + Math.random() * 1.4;
-    h.beginPath(); h.moveTo(x, y); h.quadraticCurveTo(x + (Math.random() - 0.5) * 8, y + l / 2, x + (Math.random() - 0.5) * 6, y + l); h.stroke();
-    if (y + l > 256) { h.beginPath(); h.moveTo(x, y - 256); h.lineTo(x, y + l - 256); h.stroke(); }
+  buildHairAssets();
+}
+// Haare: unregelmäßige Form, gezackter Pony, Strähnen-Textur mit Relief und mehrere durchbrochene Haarschichten
+function noisyHair(geo, amp, curl, jag, taper) {
+  const g = geo.clone(), P = g.attributes.position; let maxT = 0;
+  const th = [];
+  for (let i = 0; i < P.count; i++) { const x = P.getX(i), y = P.getY(i), z = P.getZ(i), r = Math.hypot(x, y, z); const t = Math.acos(Math.max(-1, Math.min(1, y / r))); th.push(t); if (t > maxT) maxT = t; }
+  for (let i = 0; i < P.count; i++) {
+    const x = P.getX(i), y = P.getY(i), z = P.getZ(i), r = Math.hypot(x, y, z), nx = x / r, ny = y / r, nz = z / r;
+    let n = Math.sin(nx * 7.1 + nz * 3.3) * 0.5 + Math.sin(nz * 9.7 - ny * 4.1) * 0.35 + Math.sin(nx * 13 + ny * 11) * 0.25;
+    if (curl) n += Math.sin(nx * 31 + ny * 17) * Math.sin(nz * 29 - ny * 23) * curl;
+    let k = 1 + amp * n * (taper ? 1 - Math.pow(th[i] / maxT, 3) * 0.7 : 1);
+    if (taper) k *= 1 - taper * Math.pow(th[i] / maxT, 4);   // Rand liegt am Kopf an
+    const az = Math.atan2(nx, nz);
+    let dy = 0;
+    if (jag && th[i] > maxT - 0.02) {   // unterer Rand: Strähnenspitzen
+      const sp = 0.5 + 0.5 * Math.sin(az * 23) * Math.sin(az * 7 + 1.3);
+      dy = -jag * (0.3 + 0.7 * sp); k *= 0.985;
+    }
+    P.setXYZ(i, x * k, y * k + dy, z * k);
+  }
+  g.computeVertexNormals(); return g;
+}
+// Haarschicht: entlang der Normalen versetzt, oben voluminös, zum Rand hin anliegend
+function hairShellGeo(geo, d) {
+  FIG.shellCache = FIG.shellCache || new Map();
+  const key = geo.uuid + ':' + d; if (FIG.shellCache.has(key)) return FIG.shellCache.get(key);
+  const g = geo.clone(), P = g.attributes.position, N = g.attributes.normal; let maxT = 0; const th = [];
+  for (let i = 0; i < P.count; i++) { const x = P.getX(i), y = P.getY(i), z = P.getZ(i); const t = Math.acos(Math.max(-1, Math.min(1, y / Math.hypot(x, y, z)))); th.push(t); if (t > maxT) maxT = t; }
+  const full = maxT > 3;
+  for (let i = 0; i < P.count; i++) {
+    const f = full ? 1 : 0.2 + 0.8 * (1 - Math.pow(th[i] / maxT, 3));
+    P.setXYZ(i, P.getX(i) + N.getX(i) * d * f, P.getY(i) + N.getY(i) * d * f, P.getZ(i) + N.getZ(i) * d * f);
+  }
+  FIG.shellCache.set(key, g); return g;
+}
+function buildHairAssets() {
+  const G = FIG.g;
+  G.hairCap = noisyHair(G.hairCap, 0.035, 0, 0.012, 0.12);
+  G.hairBuzz = noisyHair(G.hairBuzz, 0.012, 0, 0.004, 0.05);
+  G.afro = noisyHair(G.afro, 0.05, 0.09, 0.01);
+  G.longBack = noisyHair(G.longBack, 0.06, 0, 0);
+  // Farb-/Relief-Textur: feine Strähnen, Büschel, Glanz
+  const W = 512, hc = document.createElement('canvas'); hc.width = hc.height = W; const h = hc.getContext('2d');
+  h.fillStyle = '#868686'; h.fillRect(0, 0, W, W);
+  for (let b = 0; b < 90; b++) {   // Büschel (heller/dunkler)
+    const x = Math.random() * W, w = 6 + Math.random() * 22, v = 110 + Math.random() * 70 | 0;
+    h.fillStyle = `rgba(${v},${v},${v},0.35)`; h.fillRect(x, 0, w, W); h.fillRect(x - W, 0, w, W);
+  }
+  for (let i = 0; i < 7000; i++) {   // Strähnen laufen von oben (v=1) nach unten
+    const x = Math.random() * W, y = Math.random() * W, l = 30 + Math.random() * 110, v = 55 + Math.random() * 165 | 0;
+    h.strokeStyle = `rgba(${v},${v},${v},${0.22 + Math.random() * 0.4})`; h.lineWidth = 0.5 + Math.random() * 1.6;
+    const bend = (Math.random() - 0.5) * 14;
+    for (const o of [0, -W]) { h.beginPath(); h.moveTo(x, y + o); h.quadraticCurveTo(x + bend, y + o + l / 2, x + bend * 0.6, y + o + l); h.stroke(); }
   }
   const ht = canvasTex(hc); ht.wrapS = ht.wrapT = THREE.RepeatWrapping; ht.anisotropy = 4;
-  FIG.hairMat = new THREE.MeshStandardMaterial({ vertexColors: true, map: ht, roughness: 0.5, metalness: 0.04 });
+  const hb = canvasTex(hc, false); hb.wrapS = hb.wrapT = THREE.RepeatWrapping;
+  FIG.hairMat = new THREE.MeshStandardMaterial({ vertexColors: true, map: ht, bumpMap: hb, bumpScale: 0.9, roughness: 0.48, metalness: 0.05 });
+  // Maske für die Haarschichten: obere Hälfte dicht (innere Schicht), untere Hälfte locker (äußere Schicht)
+  const mc = document.createElement('canvas'); mc.width = mc.height = W; const m = mc.getContext('2d');
+  m.fillStyle = '#000'; m.fillRect(0, 0, W, W);
+  for (const [y0, n, wmax] of [[0, 1400, 2.6], [W / 2, 3200, 3.2]]) {
+    for (let i = 0; i < n; i++) {
+      const x = Math.random() * W, y = y0 + Math.random() * (W / 2 - 40), l = 25 + Math.random() * 90;
+      const gr = m.createLinearGradient(0, y, 0, y + l); gr.addColorStop(0, '#fff'); gr.addColorStop(0.7, '#ddd'); gr.addColorStop(1, '#000');
+      m.strokeStyle = gr; m.lineWidth = 1 + Math.random() * wmax; const bend = (Math.random() - 0.5) * 12;
+      m.beginPath(); m.moveTo(x, y); m.quadraticCurveTo(x + bend, y + l / 2, x + bend * 0.5, Math.min(y + l, y0 + W / 2 - 2)); m.stroke();
+    }
+  }
+  const mt = canvasTex(mc, false); mt.wrapS = THREE.RepeatWrapping; mt.wrapT = THREE.ClampToEdgeWrapping;
+  FIG.hairShellMat = new THREE.MeshStandardMaterial({ vertexColors: true, map: ht, alphaMap: mt, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.55, metalness: 0.03 });
 }
 function shadeHex(hex, f, add) { const c = new THREE.Color(hex); c.r = Math.min(1, c.r * f[0] + (add || 0)); c.g = Math.min(1, c.g * f[1] + (add || 0)); c.b = Math.min(1, c.b * f[2] + (add || 0)); return '#' + c.getHexString(); }
 function rgba(hex, a) { const c = new THREE.Color(hex); return `rgba(${(c.r * 255) | 0},${(c.g * 255) | 0},${(c.b * 255) | 0},${a})`; }
 // o = { skin, brow, eye, beard: 0 keiner | 1 Stoppeln | 2 Vollbart | 3 Neymar-Stil }
 function faceTexture(o) {
-  const key = [o.skin, o.brow, o.eye, o.beard].join('|');
+  const key = [o.skin, o.brow, o.eye, o.beard, o.hair, o.hl].join('|');
   if (FIG.faceTex[key]) return FIG.faceTex[key];
   const W = 512, c = document.createElement('canvas'); c.width = c.height = W; const g = c.getContext('2d');
   const B = FACE_BOX, px = x => (x - B.x0) / B.w * W, py = y => (1 - (y - B.y0) / B.h) * W, sc = W / B.w;
@@ -1395,6 +1456,19 @@ function faceTexture(o) {
     blob(s * 0.058, 0.112, 0.022, skinD, 0.28, 1.5);
     blob(s * 0.05, 0.062, 0.022, skinD, 0.18, 1.2);
     blob(s * 0.046, 0.083, 0.02, '#d0584f', 0.10);
+  }
+  // Haaransatz an Stirn, Schläfen und Koteletten
+  if (o.hl) {
+    const hlY = ax => ax < 0.044 ? 0.157 + 0.005 * (ax / 0.044) ** 2 : 0.162 - (ax - 0.044) / 0.026 * 0.07;
+    const dens = o.hl === 2 ? 0.42 : 0.9, len = o.hl === 2 ? 1.6 : o.hl === 3 ? 2.2 : 4.2;
+    blob(0, 0.168, 0.05, o.hair, o.hl === 2 ? 0.25 : 0.4, 0.25);
+    for (let i = 0; i < 9000; i++) {
+      const x = (Math.random() * 2 - 1) * 0.072, ax = Math.abs(x), y0 = hlY(ax), y = y0 - 0.004 + Math.random() * 0.026;
+      const t = Math.min(1, (y - y0 + 0.004) / 0.012); if (Math.random() > t) continue;
+      const X = px(x), Y = py(y), an = Math.PI / 2 + (ax > 0.05 ? 0 : Math.sign(x) * 0.25) + (Math.random() - 0.5) * 0.5;
+      g.strokeStyle = rgba(o.hair, dens * (0.4 + Math.random() * 0.6)); g.lineWidth = 0.9 + Math.random() * 0.9;
+      g.beginPath(); g.moveTo(X, Y); g.lineTo(X + Math.cos(an) * len * (0.5 + Math.random()), Y + Math.sin(an) * len * (0.5 + Math.random())); g.stroke();
+    }
   }
   // Augenhöhlen-Schatten
   for (const s of [-1, 1]) blob(s * 0.034, 0.118, 0.026, skinD, 0.42, 0.62);
@@ -1613,13 +1687,14 @@ function buildFigure(kitName, num, team, star) {
     { geo: G.earS, m: TRS(-0.094, 0.104, -0.008, 0, -0.35, 0), color: skin }, { geo: G.earS, m: TRS(0.094, 0.104, -0.008, 0, 0.35, 0), color: skin },
     { geo: G.earIn, m: TRS(-0.104, 0.104, -0.004, 0, 0, 0, 0.35, 1.1, 0.7), color: skinD }, { geo: G.earIn, m: TRS(0.104, 0.104, -0.004, 0, 0, 0, 0.35, 1.1, 0.7), color: skinD }
   ];
-  const style = star ? 'star' : pick(['short', 'short', 'buzz', 'afro', 'long', 'bun', 'mohawk', 'bald', 'short']);
+  const style = star ? 'star' : pick(['short', 'short', 'buzz', 'afro', 'long', 'bun', 'mohawk', 'bald', 'short', 'fade', 'fade']);
   if (style === 'star') {   // kurze dunkle Seiten, blondierter Schopf oben, weißes Stirnband
     hp.push({ geo: G.hairBuzz, m: TRS(0, 0.118, -0.008, -0.3, 0, 0, 0.93, 0.98, 1), color: hair });
     hp.push({ geo: G.hairCap, m: TRS(0, 0.15, 0.0, -0.2, 0, 0, 0.62, 0.78, 0.95), color: SKIN_OPTS.hair[SKIN.hair][1] });
     hp.push({ geo: G.headband, m: TRS(0, 0.165, -0.004, Math.PI / 2 + 0.22, 0, 0, 0.93, 1.02, 1), color: '#ffffff' });
   }
   if (style === 'short') { hp.push({ geo: G.hairCap, m: TRS(0, 0.122, -0.014, -0.58, 0, 0, 0.95, 1, 1), color: hair }); hp.push({ geo: G.hairCap, m: TRS(0, 0.134, 0.004, -0.42, 0, 0, 0.86, 0.86, 0.92), color: hair }); }
+  if (style === 'fade') { hp.push({ geo: G.hairBuzz, m: TRS(0, 0.118, -0.008, -0.3, 0, 0, 0.93, 0.98, 1), color: hair }); hp.push({ geo: G.hairCap, m: TRS(0, 0.145, -0.006, -0.42, 0, 0, 0.8, 0.86, 0.95), color: hair }); }
   if (style === 'buzz') hp.push({ geo: G.hairBuzz, m: TRS(0, 0.12, -0.008, -0.3, 0, 0, 0.93, 0.98, 1), color: hair });
   if (style === 'afro') hp.push({ geo: G.afro, m: TRS(0, 0.118, -0.028, -0.62, 0, 0, 0.92, 0.9, 0.95), color: hair });
   if (style === 'long') { hp.push({ geo: G.hairCap, m: TRS(0, 0.122, -0.014, -0.58, 0, 0, 0.97, 1, 1.02), color: hair }); hp.push({ geo: G.longBack, m: TRS(0, 0.075, -0.07), color: hair }); }
@@ -1629,8 +1704,21 @@ function buildFigure(kitName, num, team, star) {
   const HAIR_GEOS = [G.hairCap, G.hairBuzz, G.afro, G.bun, G.longBack, G.mohawk, G.clump];
   const hairParts = hp.filter(q => HAIR_GEOS.includes(q.geo)).map(q => Object.assign({ uvs: 6, uvt: 2 }, q));
   head.add(mk(hp.filter(q => !HAIR_GEOS.includes(q.geo))));
-  if (hairParts.length) { const hm = new THREE.Mesh(mergeColored(hairParts, true), FIG.hairMat); hm.castShadow = true; head.add(hm); }
-  const face = new THREE.Mesh(G.faceDecal, faceTexture({ skin, brow: star ? '#1e130c' : hair, eye: eyeC, beard }));
+  if (hairParts.length) {
+    const hm = new THREE.Mesh(mergeColored(hairParts, true), FIG.hairMat); hm.castShadow = true; head.add(hm);
+    if (GFX === 'hoch') {   // durchbrochene Haarschichten -> weicher, fransiger Umriss
+      const shells = [], I = new THREE.Matrix4();
+      for (const q of hairParts) {
+        const kurz = q.geo === G.hairBuzz, afro = q.geo === G.afro;
+        for (const [d, uvo, f] of kurz ? [[0.0022, 0.5, 0.95]] : afro ? [[0.006, 0.5, 0.95], [0.012, 0, 1.02]] : [[0.0035, 0.5, 0.9], [0.0075, 0, 0.94]]) {
+          shells.push({ geo: hairShellGeo(q.geo, d), m: q.m, color: shadeHex(q.color, [f, f, f]), uvs: 6, uvt: 0.5, uvo });
+        }
+      }
+      head.add(new THREE.Mesh(mergeColored(shells, true), FIG.hairShellMat));
+    }
+  }
+  const hl = style === 'bald' ? 0 : (style === 'buzz' || style === 'mohawk' || style === 'star' || style === 'fade') ? 2 : style === 'afro' ? 3 : 1;
+  const face = new THREE.Mesh(G.faceDecal, faceTexture({ skin, brow: star ? '#1e130c' : hair, eye: eyeC, beard, hair: style === 'mohawk' ? skinD : hair, hl }));
   face.renderOrder = 1; head.add(face);
   const tongue = new THREE.Mesh(FIG.tongue || (FIG.tongue = new THREE.BoxGeometry(0.032, 0.01, 0.05)), FIG.tongueMat || (FIG.tongueMat = stdMat('#e0606e', { roughness: 0.4 })));
   tongue.position.set(0, 0.042, 0.1); tongue.rotation.x = 0.55; tongue.visible = false; head.add(tongue);

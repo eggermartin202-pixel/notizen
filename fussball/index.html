@@ -1730,7 +1730,7 @@ function buildFigure(kitName, num, team, star) {
   const hl = style === 'bald' ? 0 : (style === 'buzz' || style === 'mohawk' || style === 'star' || style === 'fade') ? 2 : style === 'afro' ? 3 : 1;
   if (star) {   // weißes Stirnband mit Aufschrift
     const band = new THREE.Mesh(FIG.bandGeo || (FIG.bandGeo = new THREE.CylinderGeometry(0.106, 0.104, 0.03, 56, 1, true, Math.PI)), FIG.bandMat || (FIG.bandMat = headbandMat()));
-    band.position.set(0, 0.147, -0.004); band.rotation.x = -0.2; band.scale.set(0.95, 1, 1.04); band.castShadow = true; head.add(band);
+    band.position.set(0, 0.158, -0.004); band.rotation.x = 0; band.scale.set(0.95, 1, 1.04); band.castShadow = true; head.add(band);
   }
   const face = new THREE.Mesh(G.faceDecal, faceTexture({ skin, brow: star ? '#1e130c' : hair, eye: eyeC, beard, hair: style === 'mohawk' ? skinD : hair, hl }));
   face.renderOrder = 1; head.add(face);

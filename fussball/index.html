@@ -482,7 +482,7 @@ const Sound = (() => {
         arms: [[0, 200], [0.6, 170]], sky: [[0, 280], [0.5, 360], [0.9, 300]], medit: [[0, 130], [1.6, 128]],
         knee: [[0, 300], [1.2, 420]], plane: [[0, 500], [0.7, 260], [1.2, 520]],
         tongue: [[0, 420], [0.15, 620], [0.3, 420], [0.45, 620], [0.6, 420], [0.75, 620]], shuffle: [[0, 330], [0.3, 440], [0.6, 330], [0.9, 440]],
-        wave: [[0, 260], [0.5, 480], [1.0, 300]], hop: [[0, 350], [0.14, 450], [0.28, 350], [0.42, 450], [0.56, 350], [0.7, 450]], heart: [[0, 380], [0.6, 340], [1.0, 420]] };
+        wave: [[0, 260], [0.5, 480], [1.0, 300]], hop: [[0, 350], [0.14, 450], [0.28, 350], [0.42, 450], [0.56, 350], [0.7, 450]], heart: [[0, 380], [0.6, 340], [1.0, 420]], flip: [[0, 300], [0.8, 520], [1.4, 360]], kiss: [[0, 360], [0.7, 330], [1.2, 400]], fists: [[0, 320], [0.3, 460], [1.6, 400]] };
       const c = curves[type] || curves.knee;
       o.frequency.setValueAtTime(c[0][1], t);
       c.forEach(p => o.frequency.linearRampToValueAtTime(p[1], t + p[0]));
@@ -1365,7 +1365,7 @@ function buildHeadGeos() {
   FIG.g.headS = g; FIG.g.faceDecal = dg;
   const S = (r, w, h) => new THREE.SphereGeometry(r, w || 10, h || 8);
   FIG.g.noseBridge = (() => { const c = new THREE.CylinderGeometry(0.0068, 0.0105, 0.046, 10); c.scale(1, 1, 0.85); return c; })();
-  FIG.g.noseTip = S(0.0102, 12, 10); FIG.g.nostril = S(0.0078, 10, 8);
+  FIG.g.noseTip = S(0.0094, 12, 10); FIG.g.nostril = S(0.0072, 10, 8);
   FIG.g.earS = (() => { const e = new THREE.SphereGeometry(0.03, 10, 8); e.scale(0.42, 1, 0.75); return e; })();
   FIG.g.earIn = S(0.016, 8, 6);
   FIG.faceTex = {};
@@ -1698,7 +1698,7 @@ function buildFigure(kitName, num, team, star) {
   const hp = [
     { geo: G.headS, color: skin },
     { geo: G.noseBridge, m: TRS(0, 0.098, 0.097, -0.32, 0, 0, 1, 1, 0.9), color: skin },
-    { geo: G.noseTip, m: TRS(0, 0.0765, 0.106, 0, 0, 0, 1.05, 0.9, 0.9), color: skin },
+    { geo: G.noseTip, m: TRS(0, 0.077, 0.104, 0, 0, 0, 1.1, 0.88, 0.85), color: shadeHex(skin, [1.03, 0.97, 0.96]) },
     { geo: G.nostril, m: TRS(-0.011, 0.0725, 0.099, 0, 0, 0, 0.9, 0.75, 0.9), color: skin }, { geo: G.nostril, m: TRS(0.011, 0.0725, 0.099, 0, 0, 0, 0.9, 0.75, 0.9), color: skin },
     { geo: G.earS, m: TRS(-0.094, 0.104, -0.008, 0, -0.35, 0), color: skin }, { geo: G.earS, m: TRS(0.094, 0.104, -0.008, 0, 0.35, 0), color: skin },
     { geo: G.earIn, m: TRS(-0.104, 0.104, -0.004, 0, 0, 0, 0.35, 1.1, 0.7), color: skinD }, { geo: G.earIn, m: TRS(0.104, 0.104, -0.004, 0, 0, 0, 0.35, 1.1, 0.7), color: skinD }
@@ -1745,6 +1745,21 @@ function buildFigure(kitName, num, team, star) {
   }
   const face = new THREE.Mesh(G.faceDecal, faceTexture({ skin, brow: star ? '#1e130c' : hair, eye: eyeC, beard, thick: star, hair: style === 'mohawk' ? skinD : hair, hl }));
   face.renderOrder = 1; head.add(face);
+  // Mimik: offener Mund (Jubel-Schrei) und Augenlider (Blinzeln)
+  const mouth = new THREE.Group(); mouth.position.set(0, 0.046, 0.097); mouth.visible = false; head.add(mouth);
+  if (!FIG.mouthGeo) {
+    const sp = new THREE.SphereGeometry(1, 16, 10);
+    FIG.mouthGeo = mergeColored([{ geo: sp, m: TRS(0, 0, 0, 0, 0, 0, 0.017, 0.012, 0.006), color: '#2a0707' }, { geo: sp, m: TRS(0, 0.0085, 0.0028, 0, 0, 0, 0.012, 0.0028, 0.003), color: '#f2efe8' },
+      { geo: sp, m: TRS(0, -0.006, 0.002, 0, 0, 0, 0.009, 0.004, 0.004), color: '#b04050' }]);
+  }
+  const mouthIn = new THREE.Mesh(FIG.mouthGeo, FIG.mat); mouth.add(mouthIn);
+  const lipC = shadeHex(skin, [0.86, 0.6, 0.58]);
+  const lipRing = new THREE.Mesh(mergeColored([{ geo: FIG.lipGeo || (FIG.lipGeo = new THREE.TorusGeometry(1, 0.22, 6, 18)), m: TRS(0, 0, 0.001, 0, 0, 0, 0.018, 0.013, 0.006), color: lipC }]), FIG.mat); mouth.add(lipRing);
+  const lids = [];
+  for (const sd of [-1, 1]) {
+    const lid = new THREE.Mesh(mergeColored([{ geo: FIG.lidGeo || (FIG.lidGeo = new THREE.SphereGeometry(1, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2)), m: TRS(0, 0, 0, Math.PI / 2 - 0.15, 0, 0, 0.0158, 0.006, 0.0078), color: shadeHex(skin, [0.92, 0.88, 0.87]) }]), FIG.mat);
+    lid.position.set(sd * 0.034, 0.1135, 0.089); lid.visible = false; head.add(lid); lids.push(lid);
+  }
   const tongue = new THREE.Mesh(FIG.tongue || (FIG.tongue = new THREE.BoxGeometry(0.032, 0.01, 0.05)), FIG.tongueMat || (FIG.tongueMat = stdMat('#e0606e', { roughness: 0.4 })));
   tongue.position.set(0, 0.042, 0.1); tongue.rotation.x = 0.55; tongue.visible = false; head.add(tongue);
   // Beine
@@ -1787,7 +1802,7 @@ function buildFigure(kitName, num, team, star) {
   }
   const shd = new THREE.Mesh(FIG.shadow, FIG.shadowMat); shd.rotation.x = -Math.PI / 2; shd.position.y = 0.025; root.add(shd);
   const disp = star ? 'Neymar Jr.' : name.charAt(0) + name.slice(1).toLowerCase();
-  return { root, rig, chest, legs, knees, ankles, arms, elbows, fingers, head, tongue, shadow: shd, name: disp };
+  return { root, rig, chest, legs, knees, ankles, arms, elbows, fingers, head, tongue, mouth, lids, shadow: shd, name: disp, blinkT: 1 + Math.random() * 4 };
 }
 
 /* ---------- Stadion ---------- */
@@ -1989,6 +2004,9 @@ const CELES = [
   { id: 'medit', ico: '🧘', name: 'Meditation', who: 'à la Haaland', call: 'Ommmmm … 🧘' },
   { id: 'knee', ico: '🧎', name: 'Knie-Rutscher', who: 'Klassiker', call: 'JAAAAAA!' },
   { id: 'plane', ico: '✈️', name: 'Flugzeug', who: 'Arme ausbreiten', call: 'WUUUSCH! ✈️' },
+  { id: 'flip', ico: '🤸', name: 'Salto rückwärts', who: 'Akrobat', call: 'WAS FÜR EIN SALTO! 🤸' },
+  { id: 'kiss', ico: '💋', name: 'Wappen küssen', who: 'Vereinsliebe', call: 'Für den Verein! 💙❤️' },
+  { id: 'fists', ico: '✊', name: 'Fäuste & Schrei', who: 'Pure Emotion', call: 'JAAAAAAA! ✊✊' },
   { id: 'random', ico: '🎲', name: 'Zufall', who: 'Überrasch mich', call: '' }
 ];
 const FORM = [
@@ -3335,16 +3353,26 @@ const Match = (() => {
       }
     } else {
       G.ct += dt; sc.cele.t = G.ct;
-      celeMove(sc, dt);
-      if (G.ct > 3.8) startReplay();
+      if (G.ct > 3.0 && sc.cele.type !== 'group' && !G.own) { sc.cele = { type: 'group', t: 0, cx: sc.x, cz: sc.z, a0: sc.a }; G.groupT = 0; Sound.cheer(2.2, 0.6); }
+      if (sc.cele.type === 'group') { G.groupT += dt; sc.cele.t = G.groupT; sc.vx = sc.vz = 0; } else celeMove(sc, dt);
+      if (G.ct > (G.own ? 3.8 : 5.2)) startReplay();
     }
     for (const p of players) {
       if (!p.active || p === sc) continue;
       if (p.fallen > 0) p.fallen -= dt;
       if (p.team === G.team && !p.isGK && G.t > 0.6) {
-        const d = dist(p, sc);
-        if (d < 4 && !p.gesture) gesture(p, 'joy', 2.5);
-        if (d > 2.6) moveTo(p, sc.x, sc.z, 7, dt); else { p.vx *= 0.8; p.vz *= 0.8; turnTo(p, Math.atan2(sc.x - p.x, sc.z - p.z), 5, dt); }
+        // Mitspieler: hinlaufen, mitjubeln, beim Gruppenjubel umarmen
+        if (p.celeSlot === undefined || p.celeGoal !== G) { p.celeGoal = G; p.celeSlot = players.filter(q => q.team === G.team && !q.isGK && q !== sc && q.active).sort((a, b) => dist(a, sc) - dist(b, sc)).indexOf(p); p.celeMood = Math.random(); }
+        const k = p.celeSlot, group = sc.cele && sc.cele.type === 'group';
+        const ring = group ? (k < 4 ? 0.78 : k < 7 ? 1.55 : 2.6) : 2.6 + (k % 3) * 0.6;
+        const ang = sc.a + Math.PI + (k < 4 ? (k - 1.5) * 1.25 : (k - 5) * 0.9);
+        const tx = sc.x + Math.sin(ang) * ring, tz = sc.z + Math.cos(ang) * ring, d = Math.hypot(tx - p.x, tz - p.z);
+        if (dist(p, sc) < 6 && (!p.gesture || p.gesture.type === 'joy' && group && k < 4)) {
+          if (group) gesture(p, k < 4 ? 'hug' : p.celeMood < 0.5 ? 'joy' : 'five', 2.6);
+          else gesture(p, p.celeMood < 0.35 ? 'point' : p.celeMood < 0.7 ? 'joy' : 'five', 1.8);
+        }
+        if (d > 0.35) moveTo(p, tx, tz, d > 4 ? 7.5 : 4, dt); else { p.vx *= 0.7; p.vz *= 0.7; }
+        if (d < 2) turnTo(p, Math.atan2(sc.x - p.x, sc.z - p.z), 6, dt);
       } else { p.vx *= 0.92; p.vz *= 0.92; }
       p.x += p.vx * dt; p.z += p.vz * dt;
     }
@@ -3560,7 +3588,7 @@ const Match = (() => {
   }
 
   /* ---------------- Animation der Figuren ---------------- */
-  const GEST_IDS = ['head', 'protest', 'call', 'appeal', 'hips', 'knees', 'joy'];
+  const GEST_IDS = ['head', 'protest', 'call', 'appeal', 'hips', 'knees', 'joy', 'hug', 'point', 'five'];
   function gesture(p, type, dur) { if (!p || !p.active || p.isGK && type !== 'head') return; p.gesture = { type, t: 0, dur: dur || 2 }; }
   function gesturePose(fig, g) {
     const A = fig.arms, E = fig.elbows, ease = Math.min(1, g.t / 0.25, (g.dur - g.t) / 0.3);
@@ -3580,6 +3608,12 @@ const Match = (() => {
         fig.rig.rotation.x = lerp(fig.rig.rotation.x, 0.6, ease); fig.rig.position.y -= 0.08 * ease;
         mix(fig.legs[0], -0.35, 0, -0.05); mix(fig.legs[1], -0.35, 0, 0.05); fig.knees[0].rotation.x = fig.knees[1].rotation.x = 0.55 * ease;
         mix(A[0], -1.05, 0, -0.1); mix(A[1], -1.05, 0, 0.1); mix(E[0], 0, 0, 0); mix(E[1], 0, 0, 0); break;
+      case 'hug':     // Umarmung, gemeinsam hüpfen
+        fig.rig.position.y += Math.abs(Math.sin(g.t * 6.5)) * 0.16 * ease; mix(A[0], -1.3, 0, 0.45); mix(A[1], -1.3, 0, -0.45); mix(E[0], -0.8, 0, 0); mix(E[1], -0.8, 0, 0); fig.chest.rotation.x += 0.15 * ease; break;
+      case 'point':   // auf den Torschützen zeigen
+        mix(A[1], -1.45, 0, 0.12); mix(E[1], -0.05, 0, 0); mix(A[0], 0, 0, -2.6); mix(E[0], 0, 0, 0); fig.rig.position.y += Math.abs(Math.sin(g.t * 5)) * 0.1 * ease; break;
+      case 'five':    // abklatschen / Faust in die Luft
+        mix(A[1], -0.2, 0, 2.95); mix(E[1], -0.1, 0, 0); mix(A[0], 0.2, 0, -0.5); mix(E[0], -1.4, 0, 0); fig.rig.position.y += Math.abs(Math.sin(g.t * 4)) * 0.22 * ease; break;
       case 'joy':     // Mitjubeln
         fig.rig.position.y += Math.abs(Math.sin(g.t * 7)) * 0.28 * ease; mix(A[0], 0, 0, -2.7); mix(A[1], 0, 0, 2.7); mix(E[0], 0, 0, 0); mix(E[1], 0, 0, 0); break;
     }
@@ -3684,8 +3718,27 @@ const Match = (() => {
       if (p.headNod > 0) { p.headNod -= dt; fig.head.rotation.x -= Math.sin(p.headNod / 0.3 * Math.PI) * 0.5; }
       if (p.jugglePose || p.jugKick || (p === M.ctrl && M.jug)) jugPose(p, fig);
       if (p.cele) celeAnim(p, fig);
+      faceExpr(p, fig, dt);
       if (M.state === 'setpiece' && M.set && M.set.type === 'throw' && M.set.taker === p) { fig.arms[0].rotation.set(0, 0, -2.9); fig.arms[1].rotation.set(0, 0, 2.9); }
     }
+  }
+  // Mimik: Schrei beim Jubeln, Lächeln beim Tanzen, Blinzeln
+  const SCREAM = { siu: 1, knee: 1, fists: 1, generic: 0.9, plane: 0.8, hop: 0.7, flip: 0.6, group: 0.75, sky: 0.4, samba: 0.45, shuffle: 0.45, wave: 0.45, heart: 0.3 };
+  function faceExpr(p, fig, dt) {
+    if (!fig.mouth) return;
+    let open = 0;
+    if (p.cele) { open = SCREAM[p.cele.type] || 0; if (p.cele.type === 'siu' && p.cele.t < 1) open = 0.3; if (p.cele.type === 'kiss') open = 0; if (p.cele.type === 'flip' && p.cele.t < 1.1) open = 0.15; if (open > 0.5) open *= 0.85 + 0.15 * Math.sin(p.cele.t * 9); }
+    else if (p.gesture && (p.gesture.type === 'joy' || p.gesture.type === 'hug' || p.gesture.type === 'five' || p.gesture.type === 'point')) open = 0.7;
+    else if (p.gesture && p.gesture.type === 'protest') open = 0.45 + 0.2 * Math.sin(p.gesture.t * 12);
+    else if (p.stamina < 0.3 && Math.hypot(p.vx, p.vz) > 5) open = 0.35;   // Keuchen beim Sprint
+    if (fig.tongue && fig.tongue.visible) open = Math.max(open, 0.55);
+    fig.mouthOpen = lerp(fig.mouthOpen || 0, open, Math.min(1, dt * 12));
+    const m = fig.mouthOpen; fig.mouth.visible = m > 0.04; if (fig.mouth.visible) fig.mouth.scale.set(0.75 + m * 0.35, 0.25 + m * 1.35, 1);
+    fig.blinkT -= dt; let lid = 0;
+    if (fig.blinkT < 0) { lid = 1; if (fig.blinkT < -0.13) fig.blinkT = 2 + Math.random() * 4; }
+    if (p.cele && (p.cele.type === 'medit' || (p.cele.type === 'kiss' && p.cele.t > 0.5 && p.cele.t < 1.5))) lid = 1;
+    if (open > 0.8) lid = Math.max(lid, 0.55);   // beim Schreien zusammengekniffen
+    for (const l of fig.lids) { l.visible = lid > 0.02; l.scale.y = Math.max(0.05, lid); l.position.y = 0.1135 + 0.0042 * (1 - lid); }
   }
   function celeAnim(p, fig) {
     const c = p.cele, t = c.t;
@@ -3785,6 +3838,47 @@ const Match = (() => {
         E[0].rotation.x = E[1].rotation.x = -1.25;
         fig.head.rotation.set(0.05, 0, Math.sin(t * 2) * 0.18);
         R.position.y = Math.abs(Math.sin(t * 3)) * 0.04;
+        break;
+      }
+      case 'flip': {   // Salto rückwärts um die Hüfte
+        const H = 0.95;
+        if (t < 0.28) { const k = t / 0.28; R.position.y = -0.22 * k; K[0].rotation.x = K[1].rotation.x = 1.0 * k; L[0].rotation.x = L[1].rotation.x = -0.6 * k; A[0].rotation.set(0.7 * k, 0, -0.2); A[1].rotation.set(0.7 * k, 0, 0.2); }
+        else if (t < 1.08) {
+          const k = (t - 0.28) / 0.8, th = -Math.PI * 2 * (k * k * (3 - 2 * k)), tuck = Math.sin(k * Math.PI);
+          R.rotation.x = th; R.position.y = Math.sin(k * Math.PI) * 1.25 + H - H * Math.cos(th); R.position.z = -H * Math.sin(th);
+          L[0].rotation.x = L[1].rotation.x = -1.6 * tuck; K[0].rotation.x = K[1].rotation.x = 2.0 * tuck;
+          A[0].rotation.set(-1.2 * tuck, 0, -0.5); A[1].rotation.set(-1.2 * tuck, 0, 0.5); E[0].rotation.x = E[1].rotation.x = -1.2 * tuck;
+        } else {
+          const k = Math.min(1, (t - 1.08) / 0.25); R.position.y = -0.25 * (1 - k); K[0].rotation.x = K[1].rotation.x = 0.9 * (1 - k) + 0.1;
+          A[0].rotation.set(0, 0, -2.8 * k); A[1].rotation.set(0, 0, 2.8 * k); fig.head.rotation.x = -0.35 * k; R.position.y += k * Math.abs(Math.sin((t - 1.08) * 6)) * 0.12;
+        }
+        break;
+      }
+      case 'kiss': {   // Trikot nach vorne ziehen, Wappen küssen, dann zu den Fans zeigen
+        if (t < 1.9) {
+          const k = Math.min(1, t / 0.35);
+          A[0].rotation.set(-1.15 * k, 0, 0.5 * k); E[0].rotation.x = -1.95 * k; A[1].rotation.set(-0.9 * k, 0, -0.3 * k); E[1].rotation.x = -1.7 * k;
+          const kiss = t > 0.5 && t < 1.5 ? Math.min(1, (t - 0.5) / 0.25, (1.5 - t) / 0.25) : 0;
+          fig.head.rotation.x = 0.55 * kiss; R.rotation.x = 0.22 * kiss; fig.chest.rotation.x = 0.2 * kiss;
+        } else {
+          const k = Math.min(1, (t - 1.9) / 0.3); A[1].rotation.set(-0.4, 0, 2.6 * k); E[1].rotation.x = -0.1; A[0].rotation.set(-1.0 * (1 - k), 0, -0.4 * k); E[0].rotation.x = -1.6 * (1 - k);
+          fig.head.rotation.x = -0.3 * k; R.position.y = Math.abs(Math.sin(t * 5)) * 0.1 * k;
+        }
+        break;
+      }
+      case 'fists': {   // breitbeinig, Fäuste ballen, Schrei zum Himmel
+        const pump = Math.abs(Math.sin(t * 5.5));
+        R.position.y = -0.2; L[0].rotation.set(-0.25, 0, -0.38); L[1].rotation.set(-0.25, 0, 0.38); K[0].rotation.x = K[1].rotation.x = 0.55;
+        A[0].rotation.set(-0.5 - pump * 0.5, 0, -0.75); A[1].rotation.set(-0.5 - pump * 0.5, 0, 0.75); E[0].rotation.x = E[1].rotation.x = -1.9 + pump * 0.3;
+        fig.chest.rotation.x = -0.25 - pump * 0.1; fig.head.rotation.x = -0.45; R.rotation.x = -0.05;
+        break;
+      }
+      case 'group': {  // Torschütze in der Traube: umarmen, hüpfen, Faust hoch
+        const b = Math.abs(Math.sin(t * 6.5));
+        R.position.y = b * 0.2; K[0].rotation.x = K[1].rotation.x = (1 - b) * 0.5;
+        if (Math.floor(t * 1.2) % 2) { A[0].rotation.set(0, 0, -2.85); A[1].rotation.set(0, 0, 2.85); E[0].rotation.x = E[1].rotation.x = -0.1; }
+        else { A[0].rotation.set(-1.3, 0, 0.45); A[1].rotation.set(-1.3, 0, -0.45); E[0].rotation.x = E[1].rotation.x = -0.8; }
+        fig.head.rotation.x = -0.2;
         break;
       }
       default: {
@@ -4268,7 +4362,7 @@ const Match = (() => {
     if (psoCross) psoCross.visible = false; trajPts.visible = false;
   }
   /* =================== ONLINE-MULTIPLAYER (Gastgeber rechnet, Gast steuert Real Nr. 9) =================== */
-  const CELE_IDS = ['generic', ...CELES.map(c => c.id)];
+  const CELE_IDS = ['generic', ...CELES.map(c => c.id), 'group'];
   const SIG_IDS = ['flag', 'card', 'goal', 'foul', 'whistle'];
   const r3 = v => Math.round(v * 1000) / 1000;
   const PERSONAL = ['Pass zu dir', 'Ball verloren', 'Kurve', 'Antritt', 'Ball fordern', 'Hochgelupft', 'Kein Ball', 'Für Tricks', 'Trick:', 'Kamera', 'Grafik', 'Abschlag zu dir', 'Dein Tor', 'Ball erobert', 'Ball versprungen', 'Du steuerst', 'Du bist Neymar', 'Online', 'Trainingsplatz', 'Dein Freund'];

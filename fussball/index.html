@@ -1446,7 +1446,7 @@ function shadeHex(hex, f, add) { const c = new THREE.Color(hex); c.r = Math.min(
 function rgba(hex, a) { const c = new THREE.Color(hex); return `rgba(${(c.r * 255) | 0},${(c.g * 255) | 0},${(c.b * 255) | 0},${a})`; }
 // o = { skin, brow, eye, beard: 0 keiner | 1 Stoppeln | 2 Vollbart | 3 Neymar-Stil }
 function faceTexture(o) {
-  const key = [o.skin, o.brow, o.eye, o.beard, o.hair, o.hl].join('|');
+  const key = [o.skin, o.brow, o.eye, o.beard, o.hair, o.hl, o.thick ? 1 : 0].join('|');
   if (FIG.faceTex[key]) return FIG.faceTex[key];
   const W = 512, c = document.createElement('canvas'); c.width = c.height = W; const g = c.getContext('2d');
   const B = FACE_BOX, px = x => (x - B.x0) / B.w * W, py = y => (1 - (y - B.y0) / B.h) * W, sc = W / B.w;
@@ -1552,8 +1552,8 @@ function faceTexture(o) {
     g.beginPath(); g.moveTo(ex - ew * 0.8 * s, ey + eh * 0.7); g.quadraticCurveTo(ex, ey + eh * 1.55, ex + ew * 0.95 * s, ey + eh * 0.2); g.stroke();
     // Augenbraue aus einzelnen Härchen
     g.strokeStyle = rgba(o.brow, 0.9); g.lineWidth = 0.00055 * sc;
-    for (let i = 0; i < (o.beard === 3 ? 320 : 170); i++) {
-      const t = Math.random(), bx = s * (0.016 + t * 0.03), th = (o.beard === 3 ? 0.0055 : 0.0042) * (1 - t * 0.5);
+    for (let i = 0; i < (o.thick ? 300 : 170); i++) {
+      const t = Math.random(), bx = s * (0.016 + t * 0.03), th = (o.thick ? 0.0052 : 0.0042) * (1 - t * 0.5);
       const by = 0.1355 + Math.sin(t * Math.PI * 0.85) * 0.004 - t * 0.0015 + (Math.random() - 0.5) * th;
       const X = px(bx), Y = py(by), an = (s > 0 ? -0.25 : Math.PI + 0.25) - (t - 0.3) * 0.5 * s;
       g.beginPath(); g.moveTo(X, Y); g.lineTo(X + Math.cos(an) * 0.0028 * sc, Y + Math.sin(an) * 0.0016 * sc); g.stroke();
@@ -1720,7 +1720,7 @@ function buildFigure(kitName, num, team, star) {
   if (style === 'long') { hp.push({ geo: G.hairCap, m: TRS(0, 0.122, -0.014, -0.58, 0, 0, 0.97, 1, 1.02), color: hair }); hp.push({ geo: G.longBack, m: TRS(0, 0.075, -0.07), color: hair }); }
   if (style === 'bun') { hp.push({ geo: G.hairCap, m: TRS(0, 0.122, -0.014, -0.58, 0, 0, 0.95, 1, 1), color: hair }); hp.push({ geo: G.bun, m: TRS(0, 0.215, -0.07), color: hair }); }
   if (style === 'mohawk') { hp.push({ geo: G.hairBuzz, m: TRS(0, 0.118, -0.008, -0.3, 0, 0, 0.93, 0.98, 1), color: skinD }); hp.push({ geo: G.mohawk, m: TRS(0, 0.208, -0.012, -0.15, 0, 0), color: hair }); }
-  const beard = star ? 3 : team === 2 ? (Math.random() < 0.3 ? 1 : 0) : (r => r < 0.14 ? 2 : r < 0.36 ? 1 : 0)(Math.random());
+  const beard = star ? 0 : team === 2 ? (Math.random() < 0.3 ? 1 : 0) : (r => r < 0.14 ? 2 : r < 0.36 ? 1 : 0)(Math.random());
   const HAIR_GEOS = [G.hairCap, G.hairBuzz, G.afro, G.bun, G.longBack, G.mohawk, G.clump, G.tuft];
   const hairParts = hp.filter(q => HAIR_GEOS.includes(q.geo)).map(q => Object.assign({ uvs: 6, uvt: 2 }, q));
   head.add(mk(hp.filter(q => !HAIR_GEOS.includes(q.geo))));
@@ -1738,12 +1738,12 @@ function buildFigure(kitName, num, team, star) {
     }
   }
   const hl = style === 'bald' ? 0 : (style === 'buzz' || style === 'mohawk' || style === 'star' || style === 'fade') ? 2 : style === 'afro' ? 3 : 1;
-  if (star) head.scale.set(0.95, 1.03, 0.98);
+  if (star) head.scale.set(0.96, 1.02, 0.98);
   if (star) {   // weißes Stirnband mit Aufschrift
     const band = new THREE.Mesh(FIG.bandGeo || (FIG.bandGeo = new THREE.CylinderGeometry(0.106, 0.104, 0.03, 56, 1, true, Math.PI)), FIG.bandMat || (FIG.bandMat = headbandMat()));
     band.position.set(0, 0.158, -0.004); band.rotation.x = 0; band.scale.set(0.95, 1, 1.04); band.castShadow = true; head.add(band);
   }
-  const face = new THREE.Mesh(G.faceDecal, faceTexture({ skin, brow: star ? '#1e130c' : hair, eye: eyeC, beard, hair: style === 'mohawk' ? skinD : hair, hl }));
+  const face = new THREE.Mesh(G.faceDecal, faceTexture({ skin, brow: star ? '#1e130c' : hair, eye: eyeC, beard, thick: star, hair: style === 'mohawk' ? skinD : hair, hl }));
   face.renderOrder = 1; head.add(face);
   const tongue = new THREE.Mesh(FIG.tongue || (FIG.tongue = new THREE.BoxGeometry(0.032, 0.01, 0.05)), FIG.tongueMat || (FIG.tongueMat = stdMat('#e0606e', { roughness: 0.4 })));
   tongue.position.set(0, 0.042, 0.1); tongue.rotation.x = 0.55; tongue.visible = false; head.add(tongue);
